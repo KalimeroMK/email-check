@@ -1,0 +1,29 @@
+services:
+  # Локален SMTP сервер за тестирање (MailHog)
+  smtp-server:
+    image: mailhog/mailhog:v1.0.1
+    container_name: email-validator-smtp
+    ports:
+      - "1025:1025"  # SMTP порт
+      - "8025:8025"  # Web UI порт
+    environment:
+      - MH_SMTP_BIND_ADDR=0.0.0.0:1025
+      - MH_UI_BIND_ADDR=0.0.0.0:8025
+    restart: unless-stopped
+    networks:
+      - email-validator-network
+
+  # Алтернативен SMTP сервер (MailCatcher)
+  mailcatcher:
+    image: schickling/mailcatcher:latest
+    container_name: email-validator-mailcatcher
+    ports:
+      - "1080:1080"  # Web UI порт
+      - "1025:1025"  # SMTP порт (ако сакаш да користиш MailCatcher наместо MailHog)
+    restart: unless-stopped
+    networks:
+      - email-validator-network
+
+networks:
+  email-validator-network:
+    driver: bridge

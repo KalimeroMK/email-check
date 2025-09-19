@@ -1,0 +1,22 @@
+[
+  "user@gmail.com",
+  "contact@yahoo.com",
+  "info@outlook.com",
+  "test@example.com",
+  "invalid-email",
+  "user@",
+  "@domain.com",
+  "user@domain",
+  "test+tag@gmail.com",
+  "user.name@domain.co.uk",
+  "user123@subdomain.example.com",
+  "a@b.co",
+  "very.long.email.address@very.long.domain.name.example.com",
+  "user@domain.com",
+  "user@domain.co.uk",
+  "admin@company.org",
+  "support@helpdesk.net",
+  "noreply@newsletter.com",
+  "sales@business.co",
+  "info@website.info"
+]
