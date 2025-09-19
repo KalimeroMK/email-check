@@ -33,7 +33,9 @@ email-check/
 │   ├── show_query_info.php    # Show query information
 │   ├── export_emails.php      # Export emails
 │   ├── quick_validate.php     # Quick validation
-│   └── extract_emails.php     # Extract emails to JSON files
+│   ├── extract_emails.php     # Extract emails to JSON files
+│   ├── validate_all_emails.php # Validate ALL emails from database
+│   └── check_progress.php     # Check validation progress
 ├── config/
 │   └── app.php            # Configuration
 ├── .env.example           # Environment variables example
@@ -122,6 +124,12 @@ php scripts/quick_validate.php
 # Extract emails to JSON files (valid and invalid)
 php scripts/extract_emails.php
 
+# Validate ALL emails from database (long process)
+php -d memory_limit=2G scripts/validate_all_emails.php
+
+# Check validation progress
+php scripts/check_progress.php
+
 # Export emails from database
 php scripts/export_emails.php
 
@@ -177,6 +185,34 @@ Example output:
     "user3@example.com"
 ]
 ```
+
+### Full Database Validation
+
+The `validate_all_emails.php` script processes ALL emails from the database:
+
+- **Processes all 284,000+ emails** in batches of 200
+- **Creates progress tracking** with `progress.json`
+- **Saves progress every 10 batches** for monitoring
+- **Estimated time**: 2-3 hours for complete validation
+- **Memory requirement**: 2GB recommended
+
+**Usage:**
+```bash
+# Run in background (recommended)
+nohup php -d memory_limit=2G scripts/validate_all_emails.php > validation.log 2>&1 &
+
+# Check progress
+php scripts/check_progress.php
+
+# Monitor logs
+tail -f validation.log
+```
+
+**Output files:**
+- `all_valid_emails_TIMESTAMP.json` - All valid emails
+- `all_invalid_emails_TIMESTAMP.json` - All invalid emails
+- `final_stats_TIMESTAMP.json` - Complete statistics
+- `progress.json` - Current progress (updated every 10 batches)
 
 ### JSON Validation
 For JSON validation, files are named with the source JSON name:

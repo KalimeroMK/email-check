@@ -40,3 +40,7 @@ results/
 
 # Rector cache
 .rector-cache/
+
+# Progress files
+progress.json
+validation.log
