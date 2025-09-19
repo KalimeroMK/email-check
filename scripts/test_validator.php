@@ -105,7 +105,7 @@ foreach ($results as $i => $result) {
     echo "[" . ($i + 1) . "/" . count($results) . sprintf('] Validating: %s ... ', $email);
 
     if ($result['is_valid']) {
-        echo "✅ VALID";
+        echo "✅ MAILBOX CONFIRMED";
 
         // Show additional information
         $advanced = $result['advanced_checks'];
@@ -131,6 +131,15 @@ foreach ($results as $i => $result) {
         }
 
         echo " [STANDALONE]";
+    } elseif (!empty($result['domain_valid'])) {
+        echo "🟡 DOMAIN VALID";
+
+        $error = $result['errors'][0] ?? 'Mailbox could not be confirmed via SMTP';
+        if (strlen($error) > 50) {
+            $error = substr($error, 0, 47) . "...";
+        }
+
+        echo ' - ' . $error;
     } else {
         echo "❌ INVALID";
         $error = $result['errors'][0] ?? 'Unknown error';
@@ -151,7 +160,10 @@ foreach ($results as $i => $result) {
 echo "\n📊 === VALIDATION RESULTS ===\n";
 $stats = $emailValidator->getStats($results);
 echo sprintf('Total emails: %s%s', $stats['total'], PHP_EOL);
-echo "Valid: {$stats['valid']} ({$stats['valid_percentage']}%)\n";
+echo "Mailbox confirmed: {$stats['valid']} ({$stats['valid_percentage']}%)\n";
+echo "Domain valid: {$stats['domain_valid']} ({$stats['domain_valid_percentage']}%)\n";
+$domainOnly = max(0, $stats['domain_valid'] - $stats['valid']);
+echo "Domain-only results: {$domainOnly}\n";
 echo sprintf('Invalid: %s%s', $stats['invalid'], PHP_EOL);
 echo sprintf('Format errors: %s%s', $stats['format_errors'], PHP_EOL);
 echo sprintf('DNS errors: %s%s', $stats['dns_errors'], PHP_EOL);
@@ -161,7 +173,8 @@ echo sprintf('Advanced errors: %s%s', $stats['advanced_errors'], PHP_EOL);
 echo "\n📋 === DETAILED RESULTS ===\n\n";
 foreach ($results as $result) {
     echo sprintf('Email: %s%s', $result['email'], PHP_EOL);
-    echo "Valid: " . ($result['is_valid'] ? "YES" : "NO") . "\n";
+    echo "Mailbox confirmed: " . ($result['is_valid'] ? "YES" : "NO") . "\n";
+    echo "Domain reachable: " . (!empty($result['domain_valid']) ? "YES" : "NO") . "\n";
     echo "Validator Type: " . ($result['validator_type'] ?? 'unknown') . "\n";
 
     if (!empty($result['warnings'])) {
@@ -202,7 +215,63 @@ foreach ($results as $result) {
     echo "\n";
 }
 
-echo "✨ Standalone validation test completed!\n";
+echo "\n🧪 === SMTP REJECTION CHECK ===\n";
+$rejectionConfig = $config['settings'];
+$rejectionConfig['smtp_validation'] = true;
+$rejectionConfig['local_smtp_validation'] = false;
+$rejectionConfig['use_advanced_validation'] = false;
+$rejectionConfig['check_spf'] = false;
+$rejectionConfig['check_dmarc'] = false;
+
+$rejectionValidator = new EmailValidator($rejectionConfig);
+$validatorReflection = new ReflectionClass($rejectionValidator);
+$smtpProperty = $validatorReflection->getProperty('smtpValidator');
+$smtpProperty->setAccessible(true);
+$smtpProperty->setValue(
+    $rejectionValidator,
+    new class extends \App\SMTPValidator {
+        public function __construct()
+        {
+            parent::__construct([
+                'timeout' => 1,
+                'max_connections' => 1,
+                'from_email' => 'validator@example.com',
+                'from_name' => 'Validator',
+                'rate_limit_delay' => 0,
+                'max_smtp_checks' => 1,
+            ]);
+        }
+
+        public function validate(string $email): array
+        {
+            return [
+                'email' => $email,
+                'is_valid' => false,
+                'smtp_valid' => false,
+                'smtp_response' => '550 5.1.1 Mailbox unavailable',
+                'error' => 'Mailbox unavailable',
+                'mx_records' => ['mx.reject.test'],
+                'smtp_server' => 'mx.reject.test',
+                'smtp_skipped' => false,
+            ];
+        }
+    }
+);
+
+$testEmail = 'user@example.com';
+$rejectionResult = $rejectionValidator->validate($testEmail);
+
+if (!$rejectionResult['is_valid'] && !empty($rejectionResult['domain_valid'])) {
+    echo "✅ SMTP rejection leaves is_valid = false while domain_valid = true\n";
+} else {
+    echo "❌ SMTP rejection handling failed (is_valid="
+        . var_export($rejectionResult['is_valid'], true)
+        . ', domain_valid='
+        . var_export($rejectionResult['domain_valid'], true)
+        . ")\n";
+}
+
+echo "\n✨ Standalone validation test completed!\n";
 echo "🔒 This validator is COMPLETELY INDEPENDENT!\n";
 echo "🛡️  Protected against ANY external package issues!\n";
 echo "📚 Uses only built-in PHP functions and our own code!\n";

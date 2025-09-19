@@ -112,6 +112,8 @@ class EmailValidator
         // 3. DNS checks
         $dnsResult = $this->dnsValidator->validateDomain($domain);
         $result['dns_checks'] = $dnsResult;
+        $domainValid = (($dnsResult['has_mx'] ?? false) || ($dnsResult['has_a'] ?? false));
+        $result['domain_valid'] = $domainValid;
 
         $dnsWarnings = [];
 
@@ -151,26 +153,39 @@ class EmailValidator
 
             if ($smtpResult['smtp_valid']) {
                 $result['is_valid'] = true;
-            } elseif ($smtpResult['smtp_skipped']) {
-                // If SMTP is skipped, use DNS result
-                if ($dnsResult['has_mx'] || $dnsResult['has_a']) {
-                    $result['is_valid'] = true;
-                    $result['errors'][] = 'SMTP validation skipped, using DNS result';
-                } else {
-                    $result['errors'][] = 'SMTP validation skipped and DNS validation failed';
-                }
-            } elseif ($dnsResult['has_mx'] || $dnsResult['has_a']) {
-                // If SMTP validation fails, try with DNS
-                $result['is_valid'] = true;
-                $result['errors'][] = 'SMTP validation failed, using DNS result';
             } else {
-                $result['errors'][] = 'SMTP validation failed: ' . ($smtpResult['error'] ?? 'Unknown error');
+                if ($smtpResult['smtp_skipped']) {
+                    if ($domainValid) {
+                        $message = 'SMTP validation skipped; domain validation succeeded';
+                        $result['warnings'][] = $message;
+                        $result['errors'][] = $message;
+                    } else {
+                        $result['errors'][] = 'SMTP validation skipped and DNS validation failed';
+                    }
+                } else {
+                    $result['errors'][] = 'SMTP validation failed: ' . ($smtpResult['error'] ?? 'Unknown error');
+
+                    if ($domainValid) {
+                        $result['warnings'][] = 'Domain has valid DNS records but mailbox verification failed';
+                    }
+                }
             }
-        } elseif ($dnsResult['has_mx'] || $dnsResult['has_a']) {
-            // DNS validation only
-            $result['is_valid'] = true;
         } else {
+            if ($domainValid) {
+                $message = 'SMTP validation not configured; domain validation succeeded';
+                $result['warnings'][] = $message;
+                $result['errors'][] = $message;
+            } else {
+                $result['errors'][] = 'Domain has no valid MX or A records';
+            }
+        }
+
+        if (!$domainValid && !in_array('Domain has no valid MX or A records', $result['errors'], true)) {
             $result['errors'][] = 'Domain has no valid MX or A records';
+        }
+
+        if ($result['warnings'] !== []) {
+            $result['warnings'] = array_values(array_unique($result['warnings']));
         }
 
         return $result;
@@ -321,6 +336,7 @@ class EmailValidator
         return [
             'email' => $email,
             'is_valid' => false,
+            'domain_valid' => false,
             'errors' => [],
             'warnings' => [],
             'dns_checks' => [],
@@ -430,33 +446,55 @@ class EmailValidator
         $stats = [
             'total' => count($results),
             'valid' => 0,
+            'domain_valid' => 0,
             'invalid' => 0,
             'dns_errors' => 0,
             'smtp_errors' => 0,
             'format_errors' => 0,
-            'advanced_errors' => 0
+            'advanced_errors' => 0,
         ];
 
         foreach ($results as $result) {
-            if ($result['is_valid']) {
-                $stats['valid']++;
-            } else {
-                $stats['invalid']++;
+            if (!empty($result['domain_valid'])) {
+                $stats['domain_valid']++;
+            }
 
-                if (in_array('Invalid email format', $result['errors'])) {
-                    $stats['format_errors']++;
-                } elseif (str_contains(implode(' ', $result['errors']), 'SMTP validation failed')) {
-                    $stats['smtp_errors']++;
-                } elseif (str_contains(implode(' ', $result['errors']), 'Advanced validation error')) {
-                    $stats['advanced_errors']++;
-                } else {
-                    $stats['dns_errors']++;
-                }
+            if (!empty($result['is_valid'])) {
+                $stats['valid']++;
+                continue;
+            }
+
+            $stats['invalid']++;
+
+            $errors = $result['errors'] ?? [];
+            if (in_array('Invalid email format', $errors, true)) {
+                $stats['format_errors']++;
+                continue;
+            }
+
+            $smtpChecks = $result['smtp_checks'] ?? [];
+            if ($smtpChecks !== [] && (!empty($smtpChecks['smtp_skipped']) || empty($smtpChecks['smtp_valid']))) {
+                $stats['smtp_errors']++;
+                continue;
+            }
+
+            $advancedErrors = $result['advanced_checks']['errors'] ?? [];
+            if ($advancedErrors !== []) {
+                $stats['advanced_errors']++;
+                continue;
+            }
+
+            if (empty($result['domain_valid'])) {
+                $stats['dns_errors']++;
             }
         }
 
         $stats['valid_percentage'] = $stats['total'] > 0
             ? round(($stats['valid'] / $stats['total']) * 100, 2)
+            : 0;
+
+        $stats['domain_valid_percentage'] = $stats['total'] > 0
+            ? round(($stats['domain_valid'] / $stats['total']) * 100, 2)
             : 0;
 
         return $stats;
