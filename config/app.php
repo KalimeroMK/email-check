@@ -32,6 +32,9 @@ return [
         // Batch Processing settings
         'batch_size' => 100,
         'max_concurrent' => 10,
+        'async_chunk_size' => 100,
+        'async_timeout' => 30,
+        'async_sleep_time' => 50000,
         'memory_limit' => '512M',
         'max_execution_time' => 300
     ],

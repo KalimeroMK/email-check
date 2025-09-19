@@ -2,6 +2,9 @@
 
 namespace App;
 
+use Spatie\Async\Pool;
+use Throwable;
+
 class SMTPValidator
 {
     private int $timeout;
@@ -20,6 +23,14 @@ class SMTPValidator
 
     private ?int $lastSmtpCheck = null;
 
+    private int $asyncChunkSize;
+
+    private int $asyncSleepTime;
+
+    private int $asyncTimeout;
+
+    private int $asyncConcurrency;
+
     /** @param array<string, mixed> $config */
     public function __construct(private array $config)
     {
@@ -29,6 +40,13 @@ class SMTPValidator
         $this->fromName = $this->config['from_name'] ?? 'Email Validator';
         $this->rateLimitDelay = $this->config['rate_limit_delay'] ?? 2; // seconds between checks
         $this->maxSmtpChecks = $this->config['max_smtp_checks'] ?? 100; // maximum number of SMTP checks
+        $this->asyncConcurrency = max(1, (int)($this->config['max_connections'] ?? 5));
+        $chunkSize = (int)($this->config['async_chunk_size'] ?? ($this->asyncConcurrency * 2));
+        $this->asyncChunkSize = max(1, $chunkSize);
+        $sleepTime = (int)($this->config['async_sleep_time'] ?? 50000);
+        $this->asyncSleepTime = max(1, $sleepTime);
+        $timeout = (int)($this->config['async_timeout'] ?? $this->timeout);
+        $this->asyncTimeout = max(1, $timeout);
     }
 
     /**
@@ -239,24 +257,41 @@ class SMTPValidator
      */
     public function validateBatch(array $emails, ?int $maxConcurrent = null): array
     {
-        $maxConcurrent ??= $this->maxConnections;
-        $results = [];
-        $chunks = array_chunk($emails, max(1, $maxConcurrent));
-
-        foreach ($chunks as $chunk) {
-            $chunkResults = [];
-
-            foreach ($chunk as $email) {
-                $chunkResults[] = $this->validate($email);
-            }
-
-            $results = array_merge($results, $chunkResults);
-
-            // Short pause between groups to not overload server
-            usleep(100000); // 0.1 second
+        if ($emails === []) {
+            return [];
         }
 
-        return $results;
+        $results = [];
+        $concurrency = max(1, $maxConcurrent ?? $this->asyncConcurrency);
+        $chunkSize = max(1, (int)($this->asyncChunkSize * ($concurrency / max(1, $this->asyncConcurrency))));
+
+        foreach (array_chunk($emails, $chunkSize, true) as $chunk) {
+            // Use an async pool so SMTP checks run concurrently without opening unlimited sockets.
+            $pool = Pool::create()
+                ->concurrency($concurrency)
+                ->timeout($this->asyncTimeout)
+                ->sleepTime($this->asyncSleepTime);
+
+            foreach ($chunk as $index => $email) {
+                // Dispatch each SMTP validation asynchronously instead of sequentially looping over emails.
+                $pool->add(function () use ($email): array {
+                    return $this->validate($email);
+                })->then(function (array $result) use (&$results, $index): void {
+                    $results[$index] = $result;
+                })->catch(function (Throwable $throwable) use (&$results, $index, $email): void {
+                    $results[$index] = $this->createAsyncErrorResult(
+                        $email,
+                        'Async SMTP validation error: ' . $throwable->getMessage()
+                    );
+                });
+            }
+
+            $pool->wait();
+        }
+
+        ksort($results);
+
+        return array_values($results);
     }
 
     /**
@@ -291,6 +326,23 @@ class SMTPValidator
             'valid_percentage' => $total > 0 ? round(($valid / $total) * 100, 2) : 0,
             'invalid_percentage' => $total > 0 ? round(($invalid / $total) * 100, 2) : 0,
             'error_percentage' => $total > 0 ? round(($errors / $total) * 100, 2) : 0
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function createAsyncErrorResult(string $email, string $message): array
+    {
+        return [
+            'email' => $email,
+            'is_valid' => false,
+            'smtp_valid' => false,
+            'smtp_response' => '',
+            'error' => $message,
+            'mx_records' => [],
+            'smtp_server' => null,
+            'smtp_skipped' => true,
         ];
     }
 }

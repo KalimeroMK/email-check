@@ -94,11 +94,8 @@ do {
     // Extract email addresses
     $emailList = array_map(fn($email) => $email->email, $emails);
 
-    // Synchronous validation with advanced validator
-    $batchResults = [];
-    foreach ($emailList as $email) {
-        $batchResults[] = $emailValidator->validate($email);
-    }
+    // Run the batch through the async pool so validations execute concurrently.
+    $batchResults = $emailValidator->validateBatch($emailList);
 
     $stats = $emailValidator->getStats($batchResults);
 

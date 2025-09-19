@@ -2,16 +2,27 @@
 
 namespace App;
 
+use Spatie\Async\Pool;
+use Throwable;
+
 class EmailValidator
 {
-    private readonly \App\DNSValidator $dnsValidator;
+    private readonly DNSValidator $dnsValidator;
 
-    private ?\App\SMTPValidator $smtpValidator = null;
+    private ?SMTPValidator $smtpValidator = null;
 
-    private ?\App\LocalSMTPValidator $localSmtpValidator = null;
+    private ?LocalSMTPValidator $localSmtpValidator = null;
 
     /** @var array<string, mixed> */
     private array $config;
+
+    private int $asyncConcurrency;
+
+    private int $asyncChunkSize;
+
+    private int $asyncTimeout;
+
+    private int $asyncSleepTime;
 
     /** @param array<string, mixed> $config */
     public function __construct(array $config = [])
@@ -26,13 +37,19 @@ class EmailValidator
             'smtp_validation' => false,
             'smtp_timeout' => 10,
             'smtp_max_connections' => 5,
+            'smtp_max_checks' => 100,
+            'smtp_rate_limit_delay' => 2,
             'from_email' => 'test@example.com',
             'from_name' => 'Email Validator',
             'local_smtp_validation' => false,
             'local_smtp_host' => 'localhost',
             'local_smtp_port' => 1025,
             'use_advanced_validation' => true,
-            'use_strict_rfc' => false
+            'use_strict_rfc' => false,
+            'max_concurrent' => 10,
+            'async_chunk_size' => 100,
+            'async_timeout' => 30,
+            'async_sleep_time' => 50000,
         ], $config);
 
         $this->dnsValidator = new DNSValidator($this->config);
@@ -58,6 +75,14 @@ class EmailValidator
                 'from_name' => $this->config['from_name']
             ]);
         }
+
+        $this->asyncConcurrency = max(1, (int)($this->config['max_concurrent'] ?? 10));
+        $chunkSize = (int)($this->config['async_chunk_size'] ?? ($this->asyncConcurrency * 5));
+        $this->asyncChunkSize = max(1, $chunkSize);
+        $timeout = (int)($this->config['async_timeout'] ?? ($this->config['timeout'] ?? 30));
+        $this->asyncTimeout = max(1, $timeout);
+        $sleepTime = (int)($this->config['async_sleep_time'] ?? 50000);
+        $this->asyncSleepTime = max(1, $sleepTime);
     }
 
     /**
@@ -66,16 +91,7 @@ class EmailValidator
      */
     public function validate(string $email): array
     {
-        $result = [
-            'email' => $email,
-            'is_valid' => false,
-            'errors' => [],
-            'dns_checks' => [],
-            'smtp_checks' => [],
-            'advanced_checks' => [],
-            'timestamp' => date('Y-m-d H:i:s'),
-            'validator_type' => 'standalone'
-        ];
+        $result = $this->createBaseResult($email);
 
         // 1. Basic format validation
         if (!$this->isValidFormat($email)) {
@@ -282,22 +298,104 @@ class EmailValidator
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    private function createBaseResult(string $email): array
+    {
+        return [
+            'email' => $email,
+            'is_valid' => false,
+            'errors' => [],
+            'dns_checks' => [],
+            'smtp_checks' => [],
+            'advanced_checks' => [],
+            'timestamp' => date('Y-m-d H:i:s'),
+            'validator_type' => 'standalone',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function createAsyncErrorResult(string $email, string $message): array
+    {
+        $result = $this->createBaseResult($email);
+        $result['errors'][] = $message;
+        $result['dns_checks'] = [
+            'domain' => null,
+            'has_mx' => false,
+            'has_a' => false,
+            'mx_records' => [],
+            'a_records' => [],
+            'response_time' => 0,
+            'errors' => [$message],
+        ];
+        $result['smtp_checks'] = [
+            'email' => $email,
+            'is_valid' => false,
+            'smtp_valid' => false,
+            'smtp_response' => '',
+            'error' => $message,
+            'mx_records' => [],
+            'smtp_server' => null,
+            'smtp_skipped' => true,
+        ];
+        $result['advanced_checks'] = [
+            'format_validation' => false,
+            'length_validation' => false,
+            'domain_validation' => false,
+            'local_validation' => false,
+            'warnings' => [],
+            'errors' => [$message],
+        ];
+
+        return $result;
+    }
+
+    /**
      * Validates a list of email addresses
      * @return list
      */
-    /** 
+    /**
      * @param array<int, string> $emails 
      * @return array<int, array<string, mixed>>
      */
     public function validateBatch(array $emails): array
     {
-        $results = [];
-
-        foreach ($emails as $email) {
-            $results[] = $this->validate($email);
+        if ($emails === []) {
+            return [];
         }
 
-        return $results;
+        $results = [];
+
+        foreach (array_chunk($emails, $this->asyncChunkSize, true) as $chunk) {
+            // Create a bounded async pool so each chunk is processed concurrently without exhausting memory.
+            $pool = Pool::create()
+                ->concurrency($this->asyncConcurrency)
+                ->timeout($this->asyncTimeout)
+                ->sleepTime($this->asyncSleepTime);
+
+            foreach ($chunk as $index => $email) {
+                // Dispatch every validation as an async task instead of running a sequential foreach loop.
+                $pool->add(function () use ($email): array {
+                    return $this->validate($email);
+                })->then(function (array $result) use (&$results, $index): void {
+                    $results[$index] = $result;
+                })->catch(function (Throwable $throwable) use (&$results, $index, $email): void {
+                    // Record failures as structured results so batch processing can continue gracefully.
+                    $results[$index] = $this->createAsyncErrorResult(
+                        $email,
+                        'Async validation error: ' . $throwable->getMessage()
+                    );
+                });
+            }
+
+            $pool->wait();
+        }
+
+        ksort($results);
+
+        return array_values($results);
     }
 
     /**
@@ -344,3 +442,4 @@ class EmailValidator
         return $stats;
     }
 }
+

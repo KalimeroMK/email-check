@@ -9,7 +9,10 @@
     "autoload": {
         "psr-4": {
             "App\\": "src/"
-        }
+        },
+        "files": [
+            "src/Support/async_polyfill.php"
+        ]
     },
     "scripts": {
         "validate": "php scripts/validate_emails.php",

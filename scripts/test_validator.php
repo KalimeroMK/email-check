@@ -62,12 +62,12 @@ echo "\n";
 
 echo "🔄 Starting standalone validation...\n\n";
 
-$results = [];
-foreach ($testEmails as $i => $email) {
-    echo "[" . ($i + 1) . "/" . count($testEmails) . sprintf('] Validating: %s ... ', $email);
+// Execute the entire sample set asynchronously instead of validating one email at a time.
+$results = $emailValidator->validateBatch($testEmails);
 
-    $result = $emailValidator->validate($email);
-    $results[] = $result;
+foreach ($results as $i => $result) {
+    $email = $result['email'];
+    echo "[" . ($i + 1) . "/" . count($results) . sprintf('] Validating: %s ... ', $email);
 
     if ($result['is_valid']) {
         echo "✅ VALID";
