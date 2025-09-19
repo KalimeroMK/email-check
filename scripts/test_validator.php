@@ -25,6 +25,7 @@ $testEmails = [
     'contact@yahoo.com',
     'info@outlook.com',
     'test@example.com',
+    'admin@iana.org', // Valid domain with only A record (no MX)
 
     // Invalid emails
     'invalid-email',
