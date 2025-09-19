@@ -27,6 +27,8 @@ class LocalSMTPValidator
 
     private int $asyncTimeout;
 
+    private bool $enableLocalEmailPatterns;
+
     /** @param array<string, mixed> $config */
     public function __construct(private array $config)
     {
@@ -43,6 +45,7 @@ class LocalSMTPValidator
         $this->asyncSleepTime = max(1, $sleepTime);
         $timeout = (int)($this->config['async_timeout'] ?? $this->timeout);
         $this->asyncTimeout = max(1, $timeout);
+        $this->enableLocalEmailPatterns = (bool)($this->config['enable_local_email_patterns'] ?? false);
     }
 
     /**
@@ -152,11 +155,15 @@ class LocalSMTPValidator
             if ($this->isPositiveResponse($response)) {
                 // If server accepts, check if domain is valid
                 if ($this->isValidDomain($domain)) {
-                    // Additionally check if email address exists (simulation)
-                    if ($this->emailExists($email)) {
-                        $result['is_valid'] = true;
+                    if ($this->enableLocalEmailPatterns) {
+                        // Additionally check if email address exists (simulation)
+                        if ($this->emailExists($email)) {
+                            $result['is_valid'] = true;
+                        } else {
+                            $result['error'] = 'Email address does not exist: ' . $email;
+                        }
                     } else {
-                        $result['error'] = 'Email address does not exist: ' . $email;
+                        $result['is_valid'] = true;
                     }
                 } else {
                     $result['error'] = 'Domain validation failed for: ' . $domain;

@@ -44,6 +44,7 @@ class EmailValidator
             'local_smtp_validation' => false,
             'local_smtp_host' => 'localhost',
             'local_smtp_port' => 1025,
+            'enable_local_email_patterns' => false,
             'use_advanced_validation' => true,
             'use_strict_rfc' => false,
             'max_concurrent' => 10,
@@ -72,7 +73,8 @@ class EmailValidator
                 'smtp_host' => $this->config['local_smtp_host'],
                 'smtp_port' => $this->config['local_smtp_port'],
                 'from_email' => $this->config['from_email'],
-                'from_name' => $this->config['from_name']
+                'from_name' => $this->config['from_name'],
+                'enable_local_email_patterns' => $this->config['enable_local_email_patterns'] ?? false,
             ]);
         }
 

@@ -16,6 +16,7 @@ $config = ConfigManager::load();
 $config['settings']['use_advanced_validation'] = true;
 $config['settings']['use_strict_rfc'] = false;
 $config['settings']['local_smtp_validation'] = true;
+$config['settings']['enable_local_email_patterns'] = false; // Ensure heuristics are disabled for baseline test
 
 $emailValidator = new EmailValidator($config['settings']);
 
@@ -51,6 +52,7 @@ echo "📊 Configuration:\n";
 echo "  - Advanced validation: " . ($config['settings']['use_advanced_validation'] ? "YES" : "NO") . "\n";
 echo "  - Strict RFC: " . ($config['settings']['use_strict_rfc'] ? "YES" : "NO") . "\n";
 echo "  - Local SMTP: " . ($config['settings']['local_smtp_validation'] ? "YES" : "NO") . "\n";
+echo "  - Local heuristics: " . ($config['settings']['enable_local_email_patterns'] ? "YES" : "NO") . "\n";
 echo "  - Total test emails: " . count($testEmails) . "\n\n";
 
 echo "📧 Test emails:\n";

@@ -25,7 +25,8 @@ return [
         'local_smtp_validation' => true, // Enable local SMTP validation
         'local_smtp_host' => 'localhost',
         'local_smtp_port' => 1025,
-        
+        'enable_local_email_patterns' => false,
+
         'from_email' => 'test@example.com',
         'from_name' => 'Email Validator',
         

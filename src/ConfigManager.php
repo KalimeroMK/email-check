@@ -133,6 +133,14 @@ class ConfigManager
             $config['settings']['local_smtp_port'] = (int)self::$env['LOCAL_SMTP_PORT'];
         }
 
+        if (isset(self::$env['ENABLE_LOCAL_EMAIL_PATTERNS'])) {
+            $config['settings']['enable_local_email_patterns'] = filter_var(
+                self::$env['ENABLE_LOCAL_EMAIL_PATTERNS'],
+                FILTER_VALIDATE_BOOLEAN,
+                FILTER_NULL_ON_FAILURE
+            ) ?? false;
+        }
+
         // Batch processing configuration
         if (isset(self::$env['BATCH_SIZE'])) {
             $config['settings']['batch_size'] = (int)self::$env['BATCH_SIZE'];
