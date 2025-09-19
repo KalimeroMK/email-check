@@ -1,27 +1,38 @@
 {
-    "name": "kalimeromk/email-check",
-    "description": "Standalone email validation application",
-    "type": "project",
-    "require": {
-        "php": ">=8.1",
-        "illuminate/database": "^9.0"
-    },
-    "autoload": {
-        "psr-4": {
-            "App\\": "src/"
-        }
-    },
-    "scripts": {
-        "validate": "php scripts/simple_extract.php",
-        "test": "php scripts/quick_validate.php",
-        "json": "php scripts/validate_json_file.php",
-        "analyze": "php scripts/analyze_server.php"
-    },
-    "config": {
-        "optimize-autoloader": true
-    },
-    "require-dev": {
-        "rector/rector": "^2.1",
-        "phpstan/phpstan": "^2.1"
+  "name": "kalimeromk/email-check",
+  "description": "An advanced PHP library for email validation with DNS checks and typo suggestions.",
+  "type": "library",
+  "keywords": [
+    "email",
+    "validation",
+    "validator",
+    "check",
+    "dns",
+    "disposable"
+  ],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Zoran Shefot Bogoevski",
+      "email": "zbogoevski@gmail.com"
     }
+  ],
+  "require": {
+    "php": ">=8.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "KalimeroMK\\EmailCheck\\": "src/"
+    }
+  },
+  "scripts": {
+    "validate": "php scripts/simple_extract.php",
+    "test": "php scripts/quick_validate.php",
+    "json": "php scripts/validate_json_file.php",
+    "analyze": "php scripts/analyze_server.php"
+  },
+  "require-dev": {
+    "rector/rector": "^1.2",
+    "phpstan/phpstan": "^1.11"
+  }
 }
