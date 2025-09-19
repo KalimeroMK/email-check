@@ -1,13 +1,13 @@
 # Email Check Application
 
-Standalone email validation with DNS checks and modular query system.
+Standalone email validation with DNS checks for analyzing email databases.
 
 ## 🚀 Technologies
 
 - **PHP 8.1+**
-- **MySQL** - Existing database (optional)
-- **JSON** - File data source (optional)
-- **Docker** - Local SMTP server
+- **MySQL** - Database integration
+- **JSON** - File data source
+- **DNS Validation** - MX and A record checks
 - **Environment Configuration** - Secure configuration via .env
 - **Composer** - Dependency management
 
@@ -16,30 +16,21 @@ Standalone email validation with DNS checks and modular query system.
 ```
 email-check/
 ├── src/
-│   ├── EmailValidator.php     # Core validation
-│   ├── DNSValidator.php       # DNS checks
-│   ├── BatchProcessor.php     # Synchronous processing
-│   ├── EmailFetcher.php       # IMAP/POP3 integration
-│   ├── DatabaseManager.php    # SQLite database
+│   ├── EmailValidator.php           # Core validation (DNS only)
+│   ├── DNSValidator.php             # DNS checks
 │   ├── ExistingDatabaseManager.php # MySQL integration
-│   ├── ConfigManager.php      # Environment configuration
-│   ├── DataManager.php        # Data source management
-│   └── QueryManager.php       # Modular query system
+│   ├── ConfigManager.php            # Environment configuration
+│   ├── DataManager.php              # Data source management
+│   └── QueryManager.php             # Query system
 ├── scripts/
-│   ├── validate_emails.php    # Main script (database or JSON)
-│   ├── validate_from_json.php # JSON file validation
-│   ├── validate_emails_safe.php # Safe DNS + local SMTP validation
-│   ├── test_validator.php     # Validator test script
-│   ├── show_query_info.php    # Show query information
-│   ├── export_emails.php      # Export emails
-│   ├── quick_validate.php     # Quick validation
-│   ├── extract_emails.php     # Extract emails to JSON files
-│   ├── validate_all_emails.php # Validate ALL emails from database
-│   └── check_progress.php     # Check validation progress
+│   ├── simple_extract.php           # Database validation
+│   ├── quick_validate.php           # Quick test
+│   └── validate_json_file.php       # JSON validation
+├── analyze_server.php               # Server analysis command
+├── test_json.php                    # JSON testing command
 ├── config/
-│   └── app.php            # Configuration
-├── .env.example           # Environment variables example
-├── .env                   # Environment variables (not committed)
+│   └── app.php                      # Configuration
+├── .env.example                     # Environment variables example
 ├── composer.json
 └── README.md
 ```
@@ -60,7 +51,7 @@ composer install
 3. **Configure environment:**
 ```bash
 # Option 1: Create .env file
-cp env.example .env
+cp .env.example .env
 # Edit .env with your database credentials
 
 # Option 2: Set environment variables directly
@@ -71,404 +62,179 @@ export DB_USERNAME="your_username"
 export DB_PASSWORD="your_password"
 ```
 
-3. **Configure the application:**
-   ```bash
-   # Copy .env.example to .env
-   cp .env.example .env
-   
-   # Update .env file with your settings
-   nano .env
-   ```
+## 🚀 Quick Start
 
-4. **Configure database (if using database):**
-   Update the following values in `.env` file:
-   ```env
-   DB_HOST=localhost
-   DB_PORT=3306
-   DB_DATABASE=your_database_name
-   DB_USERNAME=your_username
-   DB_PASSWORD=your_password
-   DATA_SOURCE=database
-   ```
-
-5. **Configure JSON file (if using JSON):**
-   ```env
-   DATA_SOURCE=json
-   JSON_FILE_PATH=emails.json
-   ```
-
-## 🚀 Usage
-
-### 1. Start local SMTP server (safe)
-
+1. **Set environment variables:**
 ```bash
-# Start Docker container for local SMTP server
-docker-compose up -d smtp-server
-
-# Check if it's running
-docker ps
+export DB_HOST="your_database_host"
+export DB_PORT="3306"
+export DB_DATABASE="your_database_name"
+export DB_USERNAME="your_username"
+export DB_PASSWORD="your_password"
 ```
 
-### 2. Show query information
-
+2. **Run validation:**
 ```bash
-# Show current query settings
-php scripts/show_query_info.php
+# Quick test (1000 emails)
+composer test
+
+# Full validation (all emails from database)
+composer validate
+
+# Analyze all server emails (detailed analysis)
+composer analyze
+
+# Test JSON file (provide path as argument)
+composer test-json /path/to/emails.json
 ```
 
-### 3. Validate emails
+## 📋 Available Commands
 
-#### Main scripts:
+### 🔍 Server Analysis
 ```bash
-# Show query information
-php scripts/show_query_info.php
+# Analyze all valid emails from database
+php analyze_server.php
+# or
+composer analyze
+```
+- Analyzes all emails with status 'valid' from database
+- Saves results to timestamped JSON files
+- Shows progress every 10 batches
+- Estimated time: ~15 minutes for 284K emails
 
-# Validate emails (configured in .env)
-php scripts/validate_emails.php
+### 📄 JSON File Testing
+```bash
+# Test specific JSON file
+php test_json.php /path/to/emails.json
+# or
+composer test-json /path/to/emails.json
+```
+- Validates emails from any JSON file
+- Supports both array format and object format
+- Saves results to timestamped JSON files
+- Fast processing for small files
 
-# JSON file validation
-php scripts/validate_from_json.php
-
-# SAFE validation (DNS + local SMTP)
-php scripts/validate_emails_safe.php
-
-# Quick validation (small number of emails)
+### ⚡ Quick Testing
+```bash
+# Quick validation test
 php scripts/quick_validate.php
-
-# Extract emails to JSON files (valid and invalid)
-php scripts/extract_emails.php
-
-# Validate ALL emails from database (long process)
-php -d memory_limit=2G scripts/validate_all_emails.php
-
-# Check validation progress
-php scripts/check_progress.php
-
-# Export emails from database
-php scripts/export_emails.php
-
-# Test validator
-php scripts/test_validator.php
+# or
+composer test
 ```
+- Tests 1000 emails for quick validation
+- Good for testing configuration
 
-### 4. Usage examples
-
-#### JSON format:
-```json
-["email1@domain.com", "email2@domain.com", "email3@domain.com"]
-```
-
-#### Use example_emails.json for testing:
+### 📊 Full Database Validation
 ```bash
-# Copy example JSON file
-cp example_emails.json my_emails.json
-
-# Validate emails
-php scripts/validate_from_json.php
+# Validate all emails from database
+php scripts/simple_extract.php
+# or
+composer validate
 ```
-
-#### Create JSON file with emails:
-```bash
-# Create JSON file with email addresses
-echo '["email1@domain.com", "email2@domain.com", "email3@domain.com"]' > my_emails.json
-
-# Or use existing example_emails.json
-cp example_emails.json my_emails.json
-```
-
-## 📊 Results
-
-Scripts create the following files:
-
-- `valid_emails_YYYY-MM-DD_HH-MM-SS.txt` - List of valid emails
-- `invalid_emails_YYYY-MM-DD_HH-MM-SS.txt` - List of invalid emails
-- `validation_report_YYYY-MM-DD_HH-MM-SS.json` - Detailed report
-
-### SPF/DMARC reporting
-
-When `check_spf`/`check_dmarc` are enabled the DNS validator records the presence of authentication policies directly inside the `dns_checks` payload and surfaces high level warnings for missing records:
-
-```json
-{
-    "email": "user@example.com",
-    "warnings": [
-        "Domain is missing SPF record"
-    ],
-    "dns_checks": {
-        "domain": "example.com",
-        "has_mx": true,
-        "has_a": true,
-        "has_spf": false,
-        "has_dmarc": true,
-        "warnings": [
-            "No SPF record found for domain"
-        ]
-    }
-}
-```
-
-The domain still passes validation thanks to MX/A records, but the warnings make it clear that SPF should be configured.
-
-### JSON Email Extraction
-
-The `extract_emails.php` script creates clean JSON files with only email addresses:
-
-- `valid_emails_YYYY-MM-DD_HH-MM-SS.json` - Array of valid email addresses
-- `invalid_emails_YYYY-MM-DD_HH-MM-SS.json` - Array of invalid email addresses
-
-Example output:
-```json
-[
-    "user1@example.com",
-    "user2@example.com",
-    "user3@example.com"
-]
-```
-
-### Full Database Validation
-
-The `validate_all_emails.php` script processes ALL emails from the database:
-
-- **Processes all 284,000+ emails** in batches of 200
-- **Creates progress tracking** with `progress.json`
-- **Saves progress every 10 batches** for monitoring
-- **Estimated time**: 2-3 hours for complete validation
-- **Memory requirement**: 2GB recommended
-
-**Usage:**
-```bash
-# Run in background (recommended)
-nohup php -d memory_limit=2G scripts/validate_all_emails.php > validation.log 2>&1 &
-
-# Check progress
-php scripts/check_progress.php
-
-# Monitor logs
-tail -f validation.log
-```
-
-**Output files:**
-- `all_valid_emails_TIMESTAMP.json` - All valid emails
-- `all_invalid_emails_TIMESTAMP.json` - All invalid emails
-- `final_stats_TIMESTAMP.json` - Complete statistics
-- `progress.json` - Current progress (updated every 10 batches)
-
-### JSON Validation
-For JSON validation, files are named with the source JSON name:
-- `valid_emails_{filename}_{timestamp}.txt`
-- `invalid_emails_{filename}_{timestamp}.txt`
-- `validation_report_{filename}_{timestamp}.json`
-
-## ⚡ Features
-
-- **Advanced Validation** - Completely independent of external packages
-- **RFC Validation** - Strict validation with custom algorithms
-- **DNS Validation** - Checks MX and A records and can include SPF/DMARC lookups
-- **Safe SMTP Validation** - Local Docker SMTP server (no IP banning)
-- **Synchronous Processing** - Stable processing without async issues
-- **Progress Tracking** - Real-time progress updates
-- **Batch Processing** - Handles large quantities of emails
-- **MySQL Integration** - Works with existing database
-- **JSON File Support** - Can use JSON file as data source
-- **Environment Configuration** - Secure configuration via .env file
-- **IP Protection** - No requests to external SMTP servers
-- **Package Protection** - Works even if external packages are removed
+- Validates all emails with status 'valid'
+- Saves progress every 5 batches
 
 ## 🔧 Configuration
 
-### Environment variables (.env)
-```env
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=3306
-DB_DATABASE=your_database_name
-DB_USERNAME=your_username
-DB_PASSWORD=your_password
-
-# Data Source Configuration
-DATA_SOURCE=database
-# Options: 'database' or 'json'
-
-# JSON File Configuration (if DATA_SOURCE=json)
-JSON_FILE_PATH=emails.json
-
-# Query Configuration
-QUERY_TYPE=valid_emails
-# Options: 'valid_emails', 'all_emails', 'invalid_emails', 'custom'
-
-# Custom Query (if QUERY_TYPE=custom)
-CUSTOM_QUERY=SELECT status, email FROM check_emails WHERE status = 'valid'
-
-# Valid Emails Query
-VALID_EMAILS_QUERY=SELECT status, email FROM check_emails WHERE status = 'valid'
-
-# All Emails Query
-ALL_EMAILS_QUERY=SELECT status, email FROM check_emails
-
-# Invalid Emails Query
-INVALID_EMAILS_QUERY=SELECT status, email FROM check_emails WHERE status = 'invalid'
-
-# Query with Limit
-QUERY_LIMIT=0
-# 0 = no limit, >0 = limit results
-
-# Query with Offset
-QUERY_OFFSET=0
-# Starting position for results
-
-# Email Validation Configuration
-VALIDATION_METHOD=advanced
-# Options: 'basic', 'advanced', 'safe'
-
-# Local SMTP Configuration
-LOCAL_SMTP_HOST=localhost
-LOCAL_SMTP_PORT=1025
-
-# Batch Processing Configuration
-BATCH_SIZE=50
-MAX_CONCURRENT=5
-
-# Output Configuration
-SAVE_RESULTS=true
-OUTPUT_DIR=results
-
-# Debug Configuration
-DEBUG=false
-VERBOSE=false
-```
-
-### Email Validator settings
+### Database Settings
 ```php
-'timeout' => 5,
-'dns_servers' => ['8.8.8.8', '1.1.1.1'],
-'check_mx' => true,
-'check_a' => true,
-'check_spf' => false, // Enable to capture SPF presence and warnings
-'check_dmarc' => false, // Enable to capture DMARC presence and warnings
+// config/app.php
+'database' => [
+    'driver' => 'mysql',
+    'host' => $_ENV['DB_HOST'] ?? 'localhost',
+    'port' => $_ENV['DB_PORT'] ?? '3306',
+    'database' => $_ENV['DB_DATABASE'] ?? 'email_check',
+    'username' => $_ENV['DB_USERNAME'] ?? 'root',
+    'password' => $_ENV['DB_PASSWORD'] ?? '',
+    'charset' => 'utf8mb4',
+    'collation' => 'utf8mb4_unicode_ci',
+],
 ```
 
-Enable `check_spf` / `check_dmarc` when you want the validator to surface additional authentication metadata. The DNS report
-will include `has_spf` / `has_dmarc` flags and the final result will list warnings when the records are missing.
-
-### Batch Processing settings
+### Validation Settings
 ```php
-'batch_size' => 200,
-'memory_limit' => '512M',
+// config/app.php
+'settings' => [
+    'timeout' => 5,
+    'dns_servers' => ['8.8.8.8', '1.1.1.1'],
+    'check_mx' => true,        // Check MX records
+    'check_a' => true,         // Check A records
+    'check_spf' => false,      // Check SPF records
+    'check_dmarc' => false,    // Check DMARC records
+    'use_advanced_validation' => true,
+    'use_strict_rfc' => false,
+],
 ```
 
-**Note:** Async processing is disabled due to issues with `spatie/async` and Illuminate classes. Scripts now use synchronous processing which is more stable.
+## 📊 Output Files
 
-## 🛡️ Safe Validation
+All commands generate timestamped output files:
 
-### Local SMTP Server
-- **Docker MailHog** - Local SMTP server for testing
-- **Web UI** - http://localhost:8025 to view emails
-- **No IP Banning** - No requests to external servers
-- **Same SMTP Protocols** - Uses standard SMTP commands
+- `*_valid_emails_*.json` - List of valid emails
+- `*_invalid_emails_*.json` - List of invalid emails
+- `*_stats_*.json` - Detailed statistics
+- `*_progress.json` - Progress tracking (for long operations)
 
-### Validation strategies:
-1. **Advanced validation** (safest) - `validate_emails.php`
-2. **DNS + Local SMTP** (recommended) - `validate_emails_safe.php`
-3. **JSON file** (easy) - `validate_from_json.php`
-4. **Real SMTP** (risky) - not recommended for large quantities
+## 🔍 Validation Process
 
-**Note:** Async processing is disabled due to issues with `spatie/async` and Illuminate classes. Scripts now use synchronous processing which is more stable.
+1. **Format Validation** - Basic email format check
+2. **Domain Extraction** - Extract domain from email
+3. **DNS Validation** - Check MX and A records
+4. **Advanced Checks** - Additional format validation
+5. **Result Generation** - Create validation report
 
 ## 📈 Performance
 
-- **~1000 emails/minute** with DNS checks
-- **~500 emails/minute** with local SMTP validation
-- **Memory efficient** - processes in batches
-- **Progress tracking** - real-time progress updates
+- **DNS Validation** - Fast and reliable
+- **Batch Processing** - 1000 emails per batch
+- **Memory Efficient** - Processes large datasets
+- **Progress Tracking** - Real-time progress updates
 
 ## 🛠️ Development
 
-### Add new validation:
-1. Open `src/EmailValidator.php`
-2. Add new check
-3. Update `DNSValidator.php` if needed
+### Running Tests
+```bash
+# Quick validation test
+composer test
+
+# Test with specific JSON file
+composer test-json /path/to/test.json
+```
+
+### Code Quality
+```bash
+# Run PHPStan
+vendor/bin/phpstan analyse
+
+# Run Rector
+vendor/bin/rector process
+```
 
 ## 📝 Examples
 
-### Configure for database:
+### Analyze Server Emails
 ```bash
-# Update .env file
-echo "DATA_SOURCE=database" >> .env
-echo "DB_HOST=localhost" >> .env
-echo "DB_DATABASE=my_database" >> .env
-echo "DB_USERNAME=my_user" >> .env
-echo "DB_PASSWORD=my_password" >> .env
+export DB_HOST="your_database_host"
+export DB_PORT="3306"
+export DB_DATABASE="your_database_name"
+export DB_USERNAME="your_username"
+export DB_PASSWORD="your_password"
 
-# Validate emails from database
-php scripts/validate_emails.php
+composer analyze
 ```
 
-### Configure for JSON file:
+### Test JSON File
 ```bash
-# Update .env file
-echo "DATA_SOURCE=json" >> .env
-echo "JSON_FILE_PATH=my_emails.json" >> .env
-
-# Validate emails from JSON file
-php scripts/validate_from_json.php
+composer test-json /path/to/your/emails.json
 ```
 
-### Create JSON file with emails:
-```bash
-# Create JSON file with email addresses
-echo '["email1@domain.com", "email2@domain.com", "email3@domain.com"]' > my_emails.json
+## 🚨 Important Notes
 
-# Validate emails
-php scripts/validate_from_json.php
-```
-
-### 4. Modular Queries
-
-#### Show query information:
-```bash
-# Show current query settings
-php scripts/show_query_info.php
-```
-
-#### Change query type:
-```bash
-# Valid emails (default)
-echo "QUERY_TYPE=valid_emails" >> .env
-
-# All emails
-echo "QUERY_TYPE=all_emails" >> .env
-
-# Invalid emails
-echo "QUERY_TYPE=invalid_emails" >> .env
-
-# Custom query
-echo "QUERY_TYPE=custom" >> .env
-echo "CUSTOM_QUERY=SELECT status, email FROM check_emails WHERE created_at > '2024-01-01'" >> .env
-```
-
-#### Add limit and offset:
-```bash
-# Limit to 1000 emails
-echo "QUERY_LIMIT=1000" >> .env
-
-# Start from 500th email
-echo "QUERY_OFFSET=500" >> .env
-```
-
-## 🐛 Troubleshooting
-
-### DNS issues:
-- Check if DNS servers are accessible
-- Update `dns_servers` in configuration
-
-### Memory issues:
-- Reduce `batch_size` in configuration
-- Increase `memory_limit` in PHP
-
-### Database connection:
-- Check MySQL settings in `config/app.php`
-- Test connection with `/existing-db/test` endpoint
+- **DNS Validation Only** - No SMTP validation (safe and fast)
+- **Environment Variables** - Required for database connection
+- **Large Datasets** - Use `analyze_server.php` for full analysis
+- **Progress Tracking** - Check progress files for long operations
 
 ## 📄 License
 
-MIT License
+This project is open source and available under the MIT License.

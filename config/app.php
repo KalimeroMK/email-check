@@ -13,30 +13,8 @@ return [
         'check_a' => true,
         'check_spf' => false,
         'check_dmarc' => false,
-        
-        // SMTP validation settings
-        'smtp_validation' => false, // Enable for real validation (risky)
-        'smtp_timeout' => 10,
-        'smtp_max_connections' => 3, // Smaller number to not overload server
-        'smtp_max_checks' => 50, // Maximum number of SMTP checks before falling back to DNS
-        'smtp_rate_limit_delay' => 3, // Seconds between SMTP checks
-        
-        // Local SMTP validation settings (safe)
-        'local_smtp_validation' => true, // Enable local SMTP validation
-        'local_smtp_host' => 'localhost',
-        'local_smtp_port' => 1025,
-        
-        'from_email' => 'test@example.com',
-        'from_name' => 'Email Validator',
-        
-        // Batch Processing settings
-        'batch_size' => 100,
-        'max_concurrent' => 10,
-        'async_chunk_size' => 100,
-        'async_timeout' => 30,
-        'async_sleep_time' => 50000,
-        'memory_limit' => '512M',
-        'max_execution_time' => 300
+        'use_advanced_validation' => true,
+        'use_strict_rfc' => false,
     ],
     
     // Database settings

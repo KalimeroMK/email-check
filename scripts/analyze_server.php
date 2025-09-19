@@ -1,3 +1,4 @@
+#!/usr/bin/env php
 <?php
 
 // Suppress all warnings and errors
@@ -5,28 +6,33 @@ error_reporting(0);
 ini_set('log_errors', 0);
 ini_set('display_errors', 0);
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
 use App\ExistingDatabaseManager;
 use App\EmailValidator;
 
 // Load configuration
-$config = require __DIR__ . '/../config/app.php';
+$config = require __DIR__ . '/config/app.php';
 
 // Initialize managers
 $existingDbManager = new ExistingDatabaseManager($config);
 $emailValidator = new EmailValidator($config['settings']);
 
-echo "🚀 Starting validation of ALL emails from database...\n\n";
+echo "🚀 Starting server email analysis...\n\n";
 
 // Get total count first
 echo "📊 Getting total email count...\n";
 $countResult = $existingDbManager->executeCustomQuery("SELECT COUNT(*) as total FROM check_emails WHERE status = 'valid'");
 $totalEmails = $countResult['results'][0]->total ?? 0;
-echo "📧 Total emails to process: {$totalEmails}\n\n";
+echo "📧 Total emails to analyze: {$totalEmails}\n\n";
 
-$batchSize = 200; // Process 200 emails at a time
-$maxBatches = ceil($totalEmails / $batchSize); // Calculate total batches needed
+if ($totalEmails === 0) {
+    echo "ℹ️  No emails found in database\n";
+    exit(0);
+}
+
+$batchSize = 1000; // Process 1000 emails at a time
+$maxBatches = ceil($totalEmails / $batchSize);
 $offset = 0;
 $totalProcessed = 0;
 $validEmails = [];
@@ -35,8 +41,7 @@ $startTime = time();
 
 echo "⚙️  Configuration:\n";
 echo "   Batch size: {$batchSize}\n";
-echo "   Total batches: {$maxBatches}\n";
-echo "   Estimated time: " . round(($totalEmails * 0.1) / 60, 1) . " minutes\n\n";
+echo "   Total batches: {$maxBatches}\n\n";
 
 for ($batch = 0; $batch < $maxBatches; $batch++) {
     $batchStartTime = time();
@@ -63,12 +68,11 @@ for ($batch = 0; $batch < $maxBatches; $batch++) {
     // Extract email addresses
     $emailAddresses = array_map(fn($row) => $row->email, $emails);
     
-    echo "   📧 Validating {$count} emails...\n";
+    echo "   📧 Processing {$count} emails...\n";
 
-    // Validate emails
+    // Process emails with proper validation (DNS + SMTP)
     $validationResults = $emailValidator->validateBatch($emailAddresses);
     
-    // Separate valid and invalid emails
     foreach ($validationResults as $result) {
         if ($result['is_valid']) {
             $validEmails[] = $result['email'];
@@ -93,9 +97,9 @@ for ($batch = 0; $batch < $maxBatches; $batch++) {
 
     $offset += $batchSize;
     
-    // Save progress every 10 batches (update same file)
+    // Save progress every 10 batches
     if (($batch + 1) % 10 == 0) {
-        $progressFile = "progress.json";
+        $progressFile = "server_analysis_progress.json";
         file_put_contents($progressFile, json_encode([
             'batch' => $batch + 1,
             'total_batches' => $maxBatches,
@@ -113,7 +117,7 @@ for ($batch = 0; $batch < $maxBatches; $batch++) {
 $totalTime = time() - $startTime;
 $totalMinutes = round($totalTime / 60, 1);
 
-echo "🎉 === VALIDATION COMPLETED ===\n";
+echo "🎉 === SERVER ANALYSIS COMPLETED ===\n";
 echo "📊 Total emails processed: {$totalProcessed}\n";
 echo "✅ Total valid emails: " . count($validEmails) . "\n";
 echo "❌ Total invalid emails: " . count($invalidEmails) . "\n";
@@ -124,24 +128,24 @@ $timestamp = date('Y-m-d_H-i-s');
 
 // Save valid emails to JSON
 if (!empty($validEmails)) {
-    $validFile = "all_valid_emails_{$timestamp}.json";
+    $validFile = "server_valid_emails_{$timestamp}.json";
     file_put_contents($validFile, json_encode($validEmails, JSON_PRETTY_PRINT));
-    echo "✅ All valid emails saved to: {$validFile}\n";
+    echo "✅ Valid emails saved to: {$validFile}\n";
 } else {
     echo "ℹ️  No valid emails to save.\n";
 }
 
 // Save invalid emails to JSON
 if (!empty($invalidEmails)) {
-    $invalidFile = "all_invalid_emails_{$timestamp}.json";
+    $invalidFile = "server_invalid_emails_{$timestamp}.json";
     file_put_contents($invalidFile, json_encode($invalidEmails, JSON_PRETTY_PRINT));
-    echo "❌ All invalid emails saved to: {$invalidFile}\n";
+    echo "❌ Invalid emails saved to: {$invalidFile}\n";
 } else {
     echo "ℹ️  No invalid emails to save.\n";
 }
 
 // Save final statistics
-$statsFile = "final_stats_{$timestamp}.json";
+$statsFile = "server_analysis_stats_{$timestamp}.json";
 file_put_contents($statsFile, json_encode([
     'total_processed' => $totalProcessed,
     'valid_count' => count($validEmails),
@@ -152,6 +156,6 @@ file_put_contents($statsFile, json_encode([
     'emails_per_minute' => round($totalProcessed / $totalMinutes, 1),
     'timestamp' => date('Y-m-d H:i:s')
 ], JSON_PRETTY_PRINT));
-echo "📊 Final statistics saved to: {$statsFile}\n";
+echo "📊 Statistics saved to: {$statsFile}\n";
 
-echo "\n✨ All emails validation completed successfully!\n";
+echo "\n✨ Server analysis completed successfully!\n";

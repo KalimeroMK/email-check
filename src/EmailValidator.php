@@ -2,27 +2,16 @@
 
 namespace App;
 
-use Spatie\Async\Pool;
 use Throwable;
 
 class EmailValidator
 {
     private readonly DNSValidator $dnsValidator;
 
-    private ?SMTPValidator $smtpValidator = null;
-
-    private ?LocalSMTPValidator $localSmtpValidator = null;
 
     /** @var array<string, mixed> */
     private array $config;
 
-    private int $asyncConcurrency;
-
-    private int $asyncChunkSize;
-
-    private int $asyncTimeout;
-
-    private int $asyncSleepTime;
 
     /** @param array<string, mixed> $config */
     public function __construct(array $config = [])
@@ -34,57 +23,11 @@ class EmailValidator
             'check_a' => true,
             'check_spf' => false,
             'check_dmarc' => false,
-            'smtp_validation' => false,
-            'smtp_timeout' => 10,
-            'smtp_max_connections' => 5,
-            'smtp_max_checks' => 100,
-            'smtp_rate_limit_delay' => 2,
-            'from_email' => 'test@example.com',
-            'from_name' => 'Email Validator',
-            'local_smtp_validation' => false,
-            'local_smtp_host' => 'localhost',
-            'local_smtp_port' => 1025,
             'use_advanced_validation' => true,
             'use_strict_rfc' => false,
-            'max_concurrent' => 10,
-            'async_chunk_size' => 100,
-            'async_timeout' => 30,
-            'async_sleep_time' => 50000,
         ], $config);
 
         $this->dnsValidator = new DNSValidator($this->config);
-
-        if ($this->config['smtp_validation']) {
-            $this->smtpValidator = new SMTPValidator([
-                'timeout' => $this->config['smtp_timeout'],
-                'max_connections' => $this->config['smtp_max_connections'],
-                'max_smtp_checks' => $this->config['smtp_max_checks'],
-                'rate_limit_delay' => $this->config['smtp_rate_limit_delay'],
-                'from_email' => $this->config['from_email'],
-                'from_name' => $this->config['from_name']
-            ]);
-        }
-
-        if ($this->config['local_smtp_validation']) {
-            $this->localSmtpValidator = new LocalSMTPValidator([
-                'timeout' => $this->config['smtp_timeout'],
-                'max_connections' => $this->config['smtp_max_connections'],
-                'smtp_host' => $this->config['local_smtp_host'],
-                'smtp_port' => $this->config['local_smtp_port'],
-                'from_email' => $this->config['from_email'],
-                'from_name' => $this->config['from_name'],
-                'check_mx' => $this->config['check_mx'],
-                'check_a' => $this->config['check_a'],
-            ], $this->dnsValidator);
-        }
-
-        $this->asyncConcurrency = max(1, (int)($this->config['max_concurrent'] ?? 10));
-        $chunkSize = (int)($this->config['async_chunk_size'] ?? ($this->asyncConcurrency * 5));
-        $this->asyncChunkSize = max(1, $chunkSize);
-        $timeout = (int)($this->config['async_timeout'] ?? ($this->config['timeout'] ?? 30));
-        $this->asyncTimeout = max(1, $timeout);
-        $sleepTime = (int)($this->config['async_sleep_time'] ?? 50000);
-        $this->asyncSleepTime = max(1, $sleepTime);
     }
 
     /**
@@ -112,7 +55,9 @@ class EmailValidator
         // 3. DNS checks
         $dnsResult = $this->dnsValidator->validateDomain($domain);
         $result['dns_checks'] = $dnsResult;
-        $domainValid = (($dnsResult['has_mx'] ?? false) || ($dnsResult['has_a'] ?? false));
+        
+        // More strict DNS validation - require MX records, not just A records
+        $domainValid = ($dnsResult['has_mx'] ?? false);
         $result['domain_valid'] = $domainValid;
 
         $dnsWarnings = [];
@@ -135,49 +80,11 @@ class EmailValidator
             $result['advanced_checks'] = $advancedResult;
         }
 
-        // 5. SMTP validation (if enabled)
-        if ($this->config['local_smtp_validation'] && $this->localSmtpValidator) {
-            // Use local SMTP validator (safe)
-            $smtpResult = $this->localSmtpValidator->validate($email);
-            $result['smtp_checks'] = $smtpResult;
-
-            if ($smtpResult['smtp_valid']) {
-                $result['is_valid'] = true;
-            } else {
-                $result['errors'][] = 'Local SMTP validation failed: ' . ($smtpResult['error'] ?? 'Unknown error');
-            }
-        } elseif ($this->config['smtp_validation'] && $this->smtpValidator) {
-            // Use real SMTP validator (risky)
-            $smtpResult = $this->smtpValidator->validate($email);
-            $result['smtp_checks'] = $smtpResult;
-
-            if ($smtpResult['smtp_valid']) {
-                $result['is_valid'] = true;
-            } else {
-                if ($smtpResult['smtp_skipped']) {
-                    if ($domainValid) {
-                        $message = 'SMTP validation skipped; domain validation succeeded';
-                        $result['warnings'][] = $message;
-                        $result['errors'][] = $message;
-                    } else {
-                        $result['errors'][] = 'SMTP validation skipped and DNS validation failed';
-                    }
-                } else {
-                    $result['errors'][] = 'SMTP validation failed: ' . ($smtpResult['error'] ?? 'Unknown error');
-
-                    if ($domainValid) {
-                        $result['warnings'][] = 'Domain has valid DNS records but mailbox verification failed';
-                    }
-                }
-            }
+        // 5. Final validation result
+        if ($domainValid) {
+            $result['is_valid'] = true;
         } else {
-            if ($domainValid) {
-                $message = 'SMTP validation not configured; domain validation succeeded';
-                $result['warnings'][] = $message;
-                $result['errors'][] = $message;
-            } else {
-                $result['errors'][] = 'Domain has no valid MX or A records';
-            }
+            $result['errors'][] = 'Domain has no valid MX or A records';
         }
 
         if (!$domainValid && !in_array('Domain has no valid MX or A records', $result['errors'], true)) {
@@ -340,7 +247,6 @@ class EmailValidator
             'errors' => [],
             'warnings' => [],
             'dns_checks' => [],
-            'smtp_checks' => [],
             'advanced_checks' => [],
             'timestamp' => date('Y-m-d H:i:s'),
             'validator_type' => 'standalone',
@@ -365,16 +271,6 @@ class EmailValidator
             'response_time' => 0,
             'warnings' => [],
             'errors' => [$message],
-        ];
-        $result['smtp_checks'] = [
-            'email' => $email,
-            'is_valid' => false,
-            'smtp_valid' => false,
-            'smtp_response' => '',
-            'error' => $message,
-            'mx_records' => [],
-            'smtp_server' => null,
-            'smtp_skipped' => true,
         ];
         $result['advanced_checks'] = [
             'format_validation' => false,
@@ -404,32 +300,18 @@ class EmailValidator
 
         $results = [];
 
-        foreach (array_chunk($emails, $this->asyncChunkSize, true) as $chunk) {
-            // Create a bounded async pool so each chunk is processed concurrently without exhausting memory.
-            $pool = Pool::create()
-                ->concurrency($this->asyncConcurrency)
-                ->timeout($this->asyncTimeout)
-                ->sleepTime($this->asyncSleepTime);
-
-            foreach ($chunk as $index => $email) {
-                // Dispatch every validation as an async task instead of running a sequential foreach loop.
-                $pool->add(function () use ($email): array {
-                    return $this->validate($email);
-                })->then(function (array $result) use (&$results, $index): void {
-                    $results[$index] = $result;
-                })->catch(function (Throwable $throwable) use (&$results, $index, $email): void {
-                    // Record failures as structured results so batch processing can continue gracefully.
-                    $results[$index] = $this->createAsyncErrorResult(
-                        $email,
-                        'Async validation error: ' . $throwable->getMessage()
-                    );
-                });
+        // Use synchronous validation to avoid async issues
+        foreach ($emails as $index => $email) {
+            try {
+                $results[$index] = $this->validate($email);
+            } catch (Throwable $throwable) {
+                // Record failures as structured results so batch processing can continue gracefully.
+                $results[$index] = $this->createAsyncErrorResult(
+                    $email,
+                    'Validation error: ' . $throwable->getMessage()
+                );
             }
-
-            $pool->wait();
         }
-
-        ksort($results);
 
         return array_values($results);
     }
