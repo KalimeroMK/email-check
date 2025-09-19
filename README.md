@@ -173,8 +173,33 @@ cp example_emails.json my_emails.json
 Scripts create the following files:
 
 - `valid_emails_YYYY-MM-DD_HH-MM-SS.txt` - List of valid emails
-- `invalid_emails_YYYY-MM-DD_HH-MM-SS.txt` - List of invalid emails  
+- `invalid_emails_YYYY-MM-DD_HH-MM-SS.txt` - List of invalid emails
 - `validation_report_YYYY-MM-DD_HH-MM-SS.json` - Detailed report
+
+### SPF/DMARC reporting
+
+When `check_spf`/`check_dmarc` are enabled the DNS validator records the presence of authentication policies directly inside the `dns_checks` payload and surfaces high level warnings for missing records:
+
+```json
+{
+    "email": "user@example.com",
+    "warnings": [
+        "Domain is missing SPF record"
+    ],
+    "dns_checks": {
+        "domain": "example.com",
+        "has_mx": true,
+        "has_a": true,
+        "has_spf": false,
+        "has_dmarc": true,
+        "warnings": [
+            "No SPF record found for domain"
+        ]
+    }
+}
+```
+
+The domain still passes validation thanks to MX/A records, but the warnings make it clear that SPF should be configured.
 
 ### JSON Email Extraction
 
@@ -230,7 +255,7 @@ For JSON validation, files are named with the source JSON name:
 
 - **Advanced Validation** - Completely independent of external packages
 - **RFC Validation** - Strict validation with custom algorithms
-- **DNS Validation** - Checks MX and A records
+- **DNS Validation** - Checks MX and A records and can include SPF/DMARC lookups
 - **Safe SMTP Validation** - Local Docker SMTP server (no IP banning)
 - **Synchronous Processing** - Stable processing without async issues
 - **Progress Tracking** - Real-time progress updates
@@ -310,7 +335,12 @@ VERBOSE=false
 'dns_servers' => ['8.8.8.8', '1.1.1.1'],
 'check_mx' => true,
 'check_a' => true,
+'check_spf' => false, // Enable to capture SPF presence and warnings
+'check_dmarc' => false, // Enable to capture DMARC presence and warnings
 ```
+
+Enable `check_spf` / `check_dmarc` when you want the validator to surface additional authentication metadata. The DNS report
+will include `has_spf` / `has_dmarc` flags and the final result will list warnings when the records are missing.
 
 ### Batch Processing settings
 ```php
