@@ -2,6 +2,9 @@
 
 namespace App;
 
+use Spatie\Async\Pool;
+use Throwable;
+
 class LocalSMTPValidator
 {
     private string $smtpHost;
@@ -16,6 +19,14 @@ class LocalSMTPValidator
 
     private string $fromName;
 
+    private int $asyncConcurrency;
+
+    private int $asyncChunkSize;
+
+    private int $asyncSleepTime;
+
+    private int $asyncTimeout;
+
     /** @param array<string, mixed> $config */
     public function __construct(private array $config)
     {
@@ -25,6 +36,13 @@ class LocalSMTPValidator
         $this->maxConnections = $this->config['max_connections'] ?? 5;
         $this->fromEmail = $this->config['from_email'] ?? 'test@example.com';
         $this->fromName = $this->config['from_name'] ?? 'Email Validator';
+        $this->asyncConcurrency = max(1, (int)($this->config['max_connections'] ?? 5));
+        $chunkSize = (int)($this->config['async_chunk_size'] ?? ($this->asyncConcurrency * 2));
+        $this->asyncChunkSize = max(1, $chunkSize);
+        $sleepTime = (int)($this->config['async_sleep_time'] ?? 50000);
+        $this->asyncSleepTime = max(1, $sleepTime);
+        $timeout = (int)($this->config['async_timeout'] ?? $this->timeout);
+        $this->asyncTimeout = max(1, $timeout);
     }
 
     /**
@@ -247,24 +265,41 @@ class LocalSMTPValidator
      */
     public function validateBatch(array $emails, ?int $maxConcurrent = null): array
     {
-        $maxConcurrent ??= $this->maxConnections;
-        $results = [];
-        $chunks = array_chunk($emails, max(1, $maxConcurrent));
-
-        foreach ($chunks as $chunk) {
-            $chunkResults = [];
-
-            foreach ($chunk as $email) {
-                $chunkResults[] = $this->validate($email);
-            }
-
-            $results = array_merge($results, $chunkResults);
-
-            // Short pause between groups
-            usleep(100000); // 0.1 second
+        if ($emails === []) {
+            return [];
         }
 
-        return $results;
+        $results = [];
+        $concurrency = max(1, $maxConcurrent ?? $this->asyncConcurrency);
+        $chunkSize = max(1, (int)($this->asyncChunkSize * ($concurrency / max(1, $this->asyncConcurrency))));
+
+        foreach (array_chunk($emails, $chunkSize, true) as $chunk) {
+            // Local validations are executed concurrently via the async pool instead of sequential loops.
+            $pool = Pool::create()
+                ->concurrency($concurrency)
+                ->timeout($this->asyncTimeout)
+                ->sleepTime($this->asyncSleepTime);
+
+            foreach ($chunk as $index => $email) {
+                // Dispatch every email to the pool so local SMTP checks scale with available processes.
+                $pool->add(function () use ($email): array {
+                    return $this->validate($email);
+                })->then(function (array $result) use (&$results, $index): void {
+                    $results[$index] = $result;
+                })->catch(function (Throwable $throwable) use (&$results, $index, $email): void {
+                    $results[$index] = $this->createAsyncErrorResult(
+                        $email,
+                        'Async local SMTP validation error: ' . $throwable->getMessage()
+                    );
+                });
+            }
+
+            $pool->wait();
+        }
+
+        ksort($results);
+
+        return array_values($results);
     }
 
     /**
@@ -299,6 +334,22 @@ class LocalSMTPValidator
             'valid_percentage' => $total > 0 ? round(($valid / $total) * 100, 2) : 0,
             'invalid_percentage' => $total > 0 ? round(($invalid / $total) * 100, 2) : 0,
             'error_percentage' => $total > 0 ? round(($errors / $total) * 100, 2) : 0
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function createAsyncErrorResult(string $email, string $message): array
+    {
+        return [
+            'email' => $email,
+            'is_valid' => false,
+            'smtp_valid' => false,
+            'smtp_response' => '',
+            'error' => $message,
+            'smtp_server' => $this->smtpHost . ':' . $this->smtpPort,
+            'local_validation' => true,
         ];
     }
 }

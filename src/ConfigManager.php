@@ -142,6 +142,18 @@ class ConfigManager
             $config['settings']['max_concurrent'] = (int)self::$env['MAX_CONCURRENT'];
         }
 
+        if (isset(self::$env['ASYNC_CHUNK_SIZE'])) {
+            $config['settings']['async_chunk_size'] = (int)self::$env['ASYNC_CHUNK_SIZE'];
+        }
+
+        if (isset(self::$env['ASYNC_TIMEOUT'])) {
+            $config['settings']['async_timeout'] = (int)self::$env['ASYNC_TIMEOUT'];
+        }
+
+        if (isset(self::$env['ASYNC_SLEEP_TIME'])) {
+            $config['settings']['async_sleep_time'] = (int)self::$env['ASYNC_SLEEP_TIME'];
+        }
+
         // Output configuration
         if (isset(self::$env['SAVE_RESULTS'])) {
             $config['save_results'] = filter_var(self::$env['SAVE_RESULTS'], FILTER_VALIDATE_BOOLEAN);
