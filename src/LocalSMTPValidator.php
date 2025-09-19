@@ -62,7 +62,8 @@ class LocalSMTPValidator
             'smtp_response' => '',
             'error' => null,
             'smtp_server' => $this->smtpHost . ':' . $this->smtpPort,
-            'local_validation' => true
+            'local_validation' => true,
+            'warnings' => [],
         ];
 
         try {
@@ -82,6 +83,8 @@ class LocalSMTPValidator
 
             // Simulate SMTP validation with local server
             $smtpResult = $this->simulateSMTPValidation($email, $domain);
+
+            $result['warnings'] = $smtpResult['warnings'];
 
             if ($smtpResult['is_valid']) {
                 $result['is_valid'] = true;
@@ -108,7 +111,8 @@ class LocalSMTPValidator
         $result = [
             'is_valid' => false,
             'response' => '',
-            'error' => null
+            'error' => null,
+            'warnings' => [],
         ];
 
         try {
@@ -154,16 +158,14 @@ class LocalSMTPValidator
 
             // For local server, simulate validation based on domain and email address
             if ($this->isPositiveResponse($response)) {
-                // If server accepts, check if domain is valid
-                if ($this->isValidDomain($domain)) {
-                    // Additionally check if email address exists (simulation)
-                    if ($this->emailExists($email)) {
-                        $result['is_valid'] = true;
-                    } else {
-                        $result['error'] = 'Email address does not exist: ' . $email;
-                    }
-                } else {
-                    $result['error'] = 'Domain validation failed for: ' . $domain;
+                $result['is_valid'] = true;
+
+                if (!$this->isValidDomain($domain)) {
+                    $result['warnings'][] = 'Domain validation heuristics failed for: ' . $domain;
+                }
+
+                if (!$this->emailExists($email)) {
+                    $result['warnings'][] = 'Heuristic check suggests the email may not exist: ' . $email;
                 }
             } else {
                 $result['error'] = 'RCPT TO failed: ' . $response;
@@ -381,6 +383,7 @@ class LocalSMTPValidator
             'error' => $message,
             'smtp_server' => $this->smtpHost . ':' . $this->smtpPort,
             'local_validation' => true,
+            'warnings' => [],
         ];
     }
 }
