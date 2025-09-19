@@ -6,13 +6,13 @@ error_reporting(0);
 ini_set('log_errors', 0);
 ini_set('display_errors', 0);
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 use App\ExistingDatabaseManager;
 use App\EmailValidator;
 
 // Load configuration
-$config = require __DIR__ . '/config/app.php';
+$config = require __DIR__ . '/../config/app.php';
 
 // Initialize managers
 $existingDbManager = new ExistingDatabaseManager($config);

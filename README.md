@@ -1,240 +1,117 @@
-# Email Check Application
+# PHP Email Check 📧
 
-Standalone email validation with DNS checks for analyzing email databases.
+[![Latest Stable Version](https://img.shields.io/packagist/v/kalimeromk/email-check.svg)](https://packagist.org/packages/kalimeromk/email-check)
+[![License](https://img.shields.io/packagist/l/kalimeromk/email-check.svg)](https://packagist.org/packages/kalimeromk/email-check)
 
-## 🚀 Technologies
+A lightweight PHP library for advanced email address validation. It performs multi-layered checks, including syntax, domain validity (DNS), disposable service detection, and more.
 
-- **PHP 8.1+**
-- **MySQL** - Database integration
-- **JSON** - File data source
-- **DNS Validation** - MX and A record checks
-- **Environment Configuration** - Secure configuration via .env
-- **Composer** - Dependency management
+---
 
-## 📁 Project Structure
+## Key Features
 
-```
-email-check/
-├── src/
-│   ├── EmailValidator.php           # Core validation (DNS only)
-│   ├── DNSValidator.php             # DNS checks
-│   ├── ExistingDatabaseManager.php # MySQL integration
-│   ├── ConfigManager.php            # Environment configuration
-│   ├── DataManager.php              # Data source management
-│   └── QueryManager.php             # Query system
-├── scripts/
-│   ├── simple_extract.php           # Database validation
-│   ├── quick_validate.php           # Quick test
-│   └── validate_json_file.php       # JSON validation
-├── analyze_server.php               # Server analysis command
-├── test_json.php                    # JSON testing command
-├── config/
-│   └── app.php                      # Configuration
-├── .env.example                     # Environment variables example
-├── composer.json
-└── README.md
-```
+* ✅ **Format Check:** Validates the basic `user@domain.com` syntax.
+* 🌐 **Domain Check:** Verifies the domain by checking for valid `MX` and `A` DNS records.
+* 🗑️ **Disposable Address Detection:** Blocks known disposable or throwaway email services.
+* 🆓 **Free Service Detection:** Identifies addresses from free providers (Gmail, Yahoo, etc.).
+* 👨‍💼 **Role-Based Address Detection:** Recognizes generic, role-based addresses like `info@`, `admin@`, `support@`.
+* 💡 **Typo Correction Suggestions:** Offers "Did you mean?" suggestions for common typos in domain names.
 
-## ⚙️ Installation
+---
 
-1. **Clone the project:**
+## Important Notice & Limitations
+
+> ⚠️ **Please Note:** This package performs a detailed technical analysis of an email address. However, it **cannot 100% guarantee** that a specific mailbox actually exists or is active. The only definitive way to verify this is by sending an email with a confirmation link.
+
+---
+
+## Installation
+
+Install the package easily via Composer.
+
 ```bash
-git clone https://github.com/KalimeroMK/email-check.git
-cd email-check
+composer require kalimeromk/email-check
 ```
 
-2. **Install dependencies:**
-```bash
-composer install
-```
+---
 
-3. **Configure environment:**
-```bash
-# Option 1: Create .env file
-cp .env.example .env
-# Edit .env with your database credentials
+## Usage
 
-# Option 2: Set environment variables directly
-export DB_HOST="your_database_host"
-export DB_PORT="3306"
-export DB_DATABASE="your_database_name"
-export DB_USERNAME="your_username"
-export DB_PASSWORD="your_password"
-```
+### Basic Usage
 
-## 🚀 Quick Start
+Instantiate the `EmailCheck` class and call the `check()` method.
 
-1. **Set environment variables:**
-```bash
-export DB_HOST="your_database_host"
-export DB_PORT="3306"
-export DB_DATABASE="your_database_name"
-export DB_USERNAME="your_username"
-export DB_PASSWORD="your_password"
-```
-
-2. **Run validation:**
-```bash
-# Quick test (1000 emails)
-composer test
-
-# Full validation (all emails from database)
-composer validate
-
-# Analyze all server emails (detailed analysis)
-composer analyze
-
-# Test JSON file (provide path as argument)
-composer test-json /path/to/emails.json
-```
-
-## 📋 Available Commands
-
-### 🔍 Server Analysis
-```bash
-# Analyze all valid emails from database
-php analyze_server.php
-# or
-composer analyze
-```
-- Analyzes all emails with status 'valid' from database
-- Saves results to timestamped JSON files
-- Shows progress every 10 batches
-- Estimated time: ~15 minutes for 284K emails
-
-### 📄 JSON File Testing
-```bash
-# Test specific JSON file
-php test_json.php /path/to/emails.json
-# or
-composer test-json /path/to/emails.json
-```
-- Validates emails from any JSON file
-- Supports both array format and object format
-- Saves results to timestamped JSON files
-- Fast processing for small files
-
-### ⚡ Quick Testing
-```bash
-# Quick validation test
-php scripts/quick_validate.php
-# or
-composer test
-```
-- Tests 1000 emails for quick validation
-- Good for testing configuration
-
-### 📊 Full Database Validation
-```bash
-# Validate all emails from database
-php scripts/simple_extract.php
-# or
-composer validate
-```
-- Validates all emails with status 'valid'
-- Saves progress every 5 batches
-
-## 🔧 Configuration
-
-### Database Settings
 ```php
-// config/app.php
-'database' => [
-    'driver' => 'mysql',
-    'host' => $_ENV['DB_HOST'] ?? 'localhost',
-    'port' => $_ENV['DB_PORT'] ?? '3306',
-    'database' => $_ENV['DB_DATABASE'] ?? 'email_check',
-    'username' => $_ENV['DB_USERNAME'] ?? 'root',
-    'password' => $_ENV['DB_PASSWORD'] ?? '',
-    'charset' => 'utf8mb4',
-    'collation' => 'utf8mb4_unicode_ci',
-],
+<?php
+
+require 'vendor/autoload.php';
+
+use KalimeroMK\EmailCheck\EmailCheck;
+
+$email = 'test@gmail.com';
+
+$validator = new EmailCheck($email);
+$result = $validator->check();
+
+print_r($result);
 ```
 
-### Validation Settings
+### Understanding the Result
+
+The `check()` method returns an associative array with the following keys:
+
+| Key             | Type    | Description                                                              |
+|:----------------|:--------|:-------------------------------------------------------------------------|
+| `email`         | string  | The submitted email address.                                             |
+| `is_valid`      | bool    | `true` if the email passes all key validations (format and domain).      |
+| `format_valid`  | bool    | `true` if the email address syntax is correct.                           |
+| `domain_valid`  | bool    | `true` if the domain has valid MX or A DNS records.                      |
+| `is_disposable` | bool    | `true` if the domain is from a known disposable email service.           |
+| `is_free`       | bool    | `true` if the domain is from a known free provider (Gmail, Yahoo...).    |
+| `is_role_based` | bool    | `true` if the address is a generic, role-based one (info@, admin@...).   |
+
+### Advanced Usage: "Did You Mean?" Suggestions
+
+If the basic validation indicates that the domain is invalid (`domain_valid` is `false`), you can use a helper function to offer the user a correction suggestion.
+
+**Example:**
+
 ```php
-// config/app.php
-'settings' => [
-    'timeout' => 5,
-    'dns_servers' => ['8.8.8.8', '1.1.1.1'],
-    'check_mx' => true,        // Check MX records
-    'check_a' => true,         // Check A records
-    'check_spf' => false,      // Check SPF records
-    'check_dmarc' => false,    // Check DMARC records
-    'use_advanced_validation' => true,
-    'use_strict_rfc' => false,
-],
+$userEmail = 'test@gmal.com'; // Email with a typo
+$validator = new EmailCheck($userEmail);
+$result = $validator->check();
+
+if (!$result['domain_valid']) {
+    // If the domain is invalid, try to find a suggestion
+    $suggestion = suggestDomainCorrection($userEmail); // Assuming you have implemented this function
+
+    if ($suggestion) {
+        echo "Did you mean: " . $suggestion . "?";
+        // Output: Did you mean: test@gmail.com?
+    }
+}
 ```
 
-## 📊 Output Files
+---
 
-All commands generate timestamped output files:
+## Maintenance
 
-- `*_valid_emails_*.json` - List of valid emails
-- `*_invalid_emails_*.json` - List of invalid emails
-- `*_stats_*.json` - Detailed statistics
-- `*_progress.json` - Progress tracking (for long operations)
+### Updating the Lists
 
-## 🔍 Validation Process
+The lists for disposable, free, and role-based domains require periodic updates. This package includes a script to automatically download the latest community-maintained list of disposable domains.
 
-1. **Format Validation** - Basic email format check
-2. **Domain Extraction** - Extract domain from email
-3. **DNS Validation** - Check MX and A records
-4. **Advanced Checks** - Additional format validation
-5. **Result Generation** - Create validation report
+To update the list, run the following command from your project's root directory:
 
-## 📈 Performance
-
-- **DNS Validation** - Fast and reliable
-- **Batch Processing** - 1000 emails per batch
-- **Memory Efficient** - Processes large datasets
-- **Progress Tracking** - Real-time progress updates
-
-## 🛠️ Development
-
-### Running Tests
 ```bash
-# Quick validation test
-composer test
-
-# Test with specific JSON file
-composer test-json /path/to/test.json
+php scripts/update-lists.php
 ```
+*Note: Adjust the path `scripts/update-lists.php` to match your project's structure.*
 
-### Code Quality
-```bash
-# Run PHPStan
-vendor/bin/phpstan analyse
+---
 
-# Run Rector
-vendor/bin/rector process
-```
+## Contributing
 
-## 📝 Examples
+Contributions are always welcome! The best way to help is by improving the lists for `free` and `role-based` domains or by opening an issue for suggestions and bug reports.
 
-### Analyze Server Emails
-```bash
-export DB_HOST="your_database_host"
-export DB_PORT="3306"
-export DB_DATABASE="your_database_name"
-export DB_USERNAME="your_username"
-export DB_PASSWORD="your_password"
+## License
 
-composer analyze
-```
-
-### Test JSON File
-```bash
-composer test-json /path/to/your/emails.json
-```
-
-## 🚨 Important Notes
-
-- **DNS Validation Only** - No SMTP validation (safe and fast)
-- **Environment Variables** - Required for database connection
-- **Large Datasets** - Use `analyze_server.php` for full analysis
-- **Progress Tracking** - Check progress files for long operations
-
-## 📄 License
-
-This project is open source and available under the MIT License.
+This project is licensed under the **MIT License**.
