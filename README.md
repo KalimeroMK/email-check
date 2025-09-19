@@ -48,7 +48,7 @@ email-check/
 
 1. **Clone the project:**
 ```bash
-git clone <repository-url>
+git clone https://github.com/KalimeroMK/email-check.git
 cd email-check
 ```
 
