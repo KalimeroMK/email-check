@@ -72,8 +72,10 @@ class EmailValidator
                 'smtp_host' => $this->config['local_smtp_host'],
                 'smtp_port' => $this->config['local_smtp_port'],
                 'from_email' => $this->config['from_email'],
-                'from_name' => $this->config['from_name']
-            ]);
+                'from_name' => $this->config['from_name'],
+                'check_mx' => $this->config['check_mx'],
+                'check_a' => $this->config['check_a'],
+            ], $this->dnsValidator);
         }
 
         $this->asyncConcurrency = max(1, (int)($this->config['max_concurrent'] ?? 10));

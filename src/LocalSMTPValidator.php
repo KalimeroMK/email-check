@@ -27,8 +27,10 @@ class LocalSMTPValidator
 
     private int $asyncTimeout;
 
+    private DNSValidator $dnsValidator;
+
     /** @param array<string, mixed> $config */
-    public function __construct(private array $config)
+    public function __construct(private array $config, ?DNSValidator $dnsValidator = null)
     {
         $this->smtpHost = $this->config['smtp_host'] ?? 'localhost';
         $this->smtpPort = $this->config['smtp_port'] ?? 1025;
@@ -43,6 +45,8 @@ class LocalSMTPValidator
         $this->asyncSleepTime = max(1, $sleepTime);
         $timeout = (int)($this->config['async_timeout'] ?? $this->timeout);
         $this->asyncTimeout = max(1, $timeout);
+
+        $this->dnsValidator = $dnsValidator ?? new DNSValidator($this->buildDnsConfig());
     }
 
     /**
@@ -183,8 +187,35 @@ class LocalSMTPValidator
      */
     private function isValidDomain(string $domain): bool
     {
-        // For unknown domains, check MX records
-        return getmxrr($domain, $mxHosts);
+        $dnsResult = $this->dnsValidator->validateDomain($domain);
+
+        if (($dnsResult['has_mx'] ?? false) || ($dnsResult['has_a'] ?? false)) {
+            return true;
+        }
+
+        if (function_exists('checkdnsrr') && checkdnsrr($domain, 'A')) {
+            return true;
+        }
+
+        if (function_exists('dns_get_record') && defined('DNS_A')) {
+            $records = @dns_get_record($domain, DNS_A);
+            if (is_array($records) && $records !== []) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildDnsConfig(): array
+    {
+        return [
+            'check_mx' => (bool)($this->config['check_mx'] ?? true),
+            'check_a' => (bool)($this->config['check_a'] ?? true),
+        ];
     }
 
     /**
