@@ -1,214 +1,201 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App;
 
-use RuntimeException;
+use Throwable;
 
 /**
- * Lightweight SMTP validator that can run inside a Docker container.
+ * Docker SMTP Validator
+ * 
+ * Designed to work from within a Docker container and connect to the public internet
+ * to verify email addresses using real SMTP servers.
  */
 class DockerSMTPValidator
 {
-    private const DEFAULT_SMTP_PORT = 25;
+    private int $timeout;
+    private string $fromEmail;
+    private string $fromName;
+    private int $rateLimitDelay;
+    private int $maxSmtpChecks;
+    private int $smtpCheckCount = 0;
+    private ?int $lastSmtpCheck = null;
 
-    /**
-     * @param string      $heloDomain      Name used for EHLO/HELO command when opening an SMTP session
-     * @param string      $fromEmail       Mailbox used for the MAIL FROM command
-     * @param int         $connectTimeout  Timeout in seconds for establishing the TCP connection
-     * @param int         $readTimeout     Timeout in seconds when waiting for responses from the SMTP server
-     * @param int         $smtpPort        Port used for the SMTP conversation (default 25)
-     * @param string|null $sourceIp        Optional IP address of the Docker container interface to bind to
-     */
-    public function __construct(
-        private string $heloDomain = 'localhost',
-        private string $fromEmail = 'validator@example.com',
-        private int $connectTimeout = 10,
-        private int $readTimeout = 10,
-        private int $smtpPort = self::DEFAULT_SMTP_PORT,
-        private ?string $sourceIp = null,
-    ) {
+    /** @param array<string, mixed> $config */
+    public function __construct(private array $config = [])
+    {
+        $this->timeout = $this->config['timeout'] ?? 10;
+        $this->fromEmail = $this->config['from_email'] ?? 'test@example.com';
+        $this->fromName = $this->config['from_name'] ?? 'Email Validator';
+        $this->rateLimitDelay = $this->config['rate_limit_delay'] ?? 2;
+        $this->maxSmtpChecks = $this->config['max_smtp_checks'] ?? 100;
     }
 
     /**
-     * Attempt to verify a mailbox by connecting directly to its SMTP server.
+     * Validates email address via SMTP
+     * 
+     * @param string $email The email address to validate
+     * @return bool True if email is valid, false otherwise
      */
     public function validateSmtp(string $email): bool
     {
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return false;
-        }
-
-        [$localPart, $domain] = explode('@', $email, 2);
-        if ($domain === '') {
-            return false;
-        }
-
-        $mxRecords = $this->lookupMxRecords($domain);
-        if ($mxRecords === []) {
-            // RFC 5321 states that we can fall back to the domain itself when no MX exists.
-            $mxRecords = [[
-                'host' => $domain,
-                'priority' => PHP_INT_MAX,
-            ]];
-        }
-
-        foreach ($mxRecords as $record) {
-            $smtpHost = $record['host'];
-
-            try {
-                $socket = $this->openSmtpSocket($smtpHost);
-            } catch (RuntimeException) {
-                continue; // Try the next MX host.
+        try {
+            // Basic format validation
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return false;
             }
 
-            try {
-                $greeting = $this->readResponse($socket);
-                if (!$this->isPositiveResponse($greeting)) {
-                    throw new RuntimeException('SMTP server rejected the connection: ' . $greeting);
+            // Extract domain
+            $atPos = strrpos($email, '@');
+            if ($atPos === false) {
+                return false;
+            }
+            
+            $domain = substr($email, $atPos + 1);
+            if (empty($domain)) {
+                return false;
+            }
+
+            // Perform DNS lookup for MX records
+            $mxRecords = $this->getMXRecords($domain);
+            if (empty($mxRecords)) {
+                return false;
+            }
+
+            // Try to establish SMTP connection to each MX server
+            foreach ($mxRecords as $mxRecord) {
+                if ($this->checkSmtpServer($mxRecord, $email)) {
+                    return true;
                 }
-
-                $isValid = $this->performValidationDialogue($socket, $email);
-            } catch (RuntimeException) {
-                fclose($socket);
-                continue;
             }
+
+            return false;
+
+        } catch (Throwable $e) {
+            // Log error if needed
+            error_log("SMTP validation error for {$email}: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Gets MX records for a domain
+     * 
+     * @param string $domain The domain to check
+     * @return array<int, string> Array of MX records
+     */
+    private function getMXRecords(string $domain): array
+    {
+        $mxRecords = [];
+        $mxWeights = [];
+
+        if (getmxrr($domain, $mxRecords, $mxWeights)) {
+            // Sort by priority (lower number = higher priority)
+            array_multisort($mxWeights, SORT_ASC, $mxRecords);
+            return $mxRecords;
+        }
+
+        return [];
+    }
+
+    /**
+     * Checks SMTP server for email validity
+     * 
+     * @param string $mxServer The MX server to check
+     * @param string $email The email address to validate
+     * @return bool True if email is valid on this server
+     */
+    private function checkSmtpServer(string $mxServer, string $email): bool
+    {
+        // Rate limiting
+        if ($this->smtpCheckCount >= $this->maxSmtpChecks) {
+            return false;
+        }
+
+        $currentTime = time();
+        if ($this->lastSmtpCheck > 0 && ($currentTime - $this->lastSmtpCheck) < $this->rateLimitDelay) {
+            $waitTime = $this->rateLimitDelay - ($currentTime - $this->lastSmtpCheck);
+            sleep($waitTime);
+        }
+
+        $this->smtpCheckCount++;
+        $this->lastSmtpCheck = time();
+
+        $socket = null;
+        
+        try {
+            // Connect to SMTP server
+            $socket = @fsockopen($mxServer, 25, $errno, $errstr, $this->timeout);
+            
+            if (!$socket) {
+                return false;
+            }
+
+            // Read welcome message
+            $response = $this->readResponse($socket);
+            if (!$this->isPositiveResponse($response)) {
+                fclose($socket);
+                return false;
+            }
+
+            // EHLO command
+            fwrite($socket, "EHLO " . $this->fromName . "\r\n");
+            $response = $this->readResponse($socket);
+            if (!$this->isPositiveResponse($response)) {
+                fclose($socket);
+                return false;
+            }
+
+            // MAIL FROM command
+            fwrite($socket, "MAIL FROM:<" . $this->fromEmail . ">\r\n");
+            $response = $this->readResponse($socket);
+            if (!$this->isPositiveResponse($response)) {
+                fclose($socket);
+                return false;
+            }
+
+            // RCPT TO command - this is the key for validation
+            fwrite($socket, "RCPT TO:<" . $email . ">\r\n");
+            $response = $this->readResponse($socket);
+            
+            $isValid = $this->isPositiveResponse($response);
+
+            // QUIT command
+            fwrite($socket, "QUIT\r\n");
+            $this->readResponse($socket);
 
             fclose($socket);
+            
+            return $isValid;
 
-            if ($isValid) {
-                return true;
+        } catch (Throwable $e) {
+            if ($socket) {
+                fclose($socket);
             }
+            return false;
         }
-
-        return false;
     }
 
     /**
-     * @return array<int, array{host: string, priority: int}>
+     * Reads response from SMTP server
+     * 
+     * @param resource $socket The socket connection
+     * @return string The response from server
      */
-    private function lookupMxRecords(string $domain): array
-    {
-        $records = dns_get_record($domain, DNS_MX) ?: [];
-
-        $mxRecords = [];
-        foreach ($records as $record) {
-            if (!isset($record['target'])) {
-                continue;
-            }
-
-            $target = rtrim($record['target'], '.');
-            if ($target === '') {
-                continue;
-            }
-
-            $mxRecords[] = [
-                'host' => $target,
-                'priority' => isset($record['pri']) ? (int) $record['pri'] : PHP_INT_MAX,
-            ];
-        }
-
-        usort(
-            $mxRecords,
-            static fn (array $a, array $b): int => $a['priority'] <=> $b['priority']
-        );
-
-        return $mxRecords;
-    }
-
-    /**
-     * @return resource
-     */
-    private function openSmtpSocket(string $host)
-    {
-        $context = stream_context_create([
-            'socket' => [
-                // Binding to 0.0.0.0 ensures the container can use whichever outbound IP Docker assigns.
-                'bindto' => ($this->sourceIp ?? '0.0.0.0') . ':0',
-            ],
-        ]);
-
-        $remote = sprintf('tcp://%s:%d', $host, $this->smtpPort);
-
-        $socket = @stream_socket_client(
-            $remote,
-            $errno,
-            $errstr,
-            $this->connectTimeout,
-            STREAM_CLIENT_CONNECT,
-            $context
-        );
-
-        if (!is_resource($socket)) {
-            throw new RuntimeException(
-                sprintf('Unable to connect to SMTP host %s: %s (%d)', $remote, $errstr ?: 'unknown error', $errno)
-            );
-        }
-
-        stream_set_timeout($socket, $this->readTimeout);
-
-        return $socket;
-    }
-
-    private function performValidationDialogue($socket, string $email): bool
-    {
-        $this->sendCommand($socket, sprintf("EHLO %s\r\n", $this->heloDomain));
-        $response = $this->readResponse($socket);
-        if (!$this->isPositiveResponse($response)) {
-            // Some servers expect HELO when EHLO fails.
-            $this->sendCommand($socket, sprintf("HELO %s\r\n", $this->heloDomain));
-            $response = $this->readResponse($socket);
-
-            if (!$this->isPositiveResponse($response)) {
-                throw new RuntimeException('EHLO/HELO rejected: ' . $response);
-            }
-        }
-
-        $this->sendCommand($socket, sprintf("MAIL FROM:<%s>\r\n", $this->fromEmail));
-        $response = $this->readResponse($socket);
-        if (!$this->isPositiveResponse($response)) {
-            throw new RuntimeException('MAIL FROM rejected: ' . $response);
-        }
-
-        $this->sendCommand($socket, sprintf("RCPT TO:<%s>\r\n", $email));
-        $response = $this->readResponse($socket);
-        $isDeliverable = $this->isPositiveResponse($response);
-
-        // Always close the conversation politely.
-        $this->sendCommand($socket, "QUIT\r\n");
-        $this->readResponse($socket);
-
-        return $isDeliverable;
-    }
-
-    private function sendCommand($socket, string $command): void
-    {
-        $bytes = @fwrite($socket, $command);
-        if ($bytes === false || $bytes === 0) {
-            throw new RuntimeException('Failed to write to SMTP socket.');
-        }
-    }
-
     private function readResponse($socket): string
     {
         $response = '';
+        $timeout = time() + $this->timeout;
 
-        while (true) {
-            $line = fgets($socket);
+        while (time() < $timeout) {
+            $line = fgets($socket, 1024);
             if ($line === false) {
-                $meta = stream_get_meta_data($socket);
-                if (!empty($meta['timed_out'])) {
-                    throw new RuntimeException('SMTP read timed out.');
-                }
-
                 break;
             }
 
             $response .= $line;
 
-            // Multi-line replies contain a hyphen after the status code.
-            if (!preg_match('/^\d{3}-/', $line)) {
+            // If line doesn't end with '-', then it's the last line
+            if (!str_ends_with(rtrim($line), '-')) {
                 break;
             }
         }
@@ -216,8 +203,33 @@ class DockerSMTPValidator
         return trim($response);
     }
 
+    /**
+     * Checks if SMTP response is positive (2xx code)
+     * 
+     * @param string $response The response to check
+     * @return bool True if response is positive
+     */
     private function isPositiveResponse(string $response): bool
     {
-        return (bool) preg_match('/^2\d{2}/', $response);
+        return (bool) preg_match('/^2\d\d/', $response);
+    }
+
+    /**
+     * Gets current SMTP check count
+     * 
+     * @return int Number of SMTP checks performed
+     */
+    public function getSmtpCheckCount(): int
+    {
+        return $this->smtpCheckCount;
+    }
+
+    /**
+     * Resets SMTP check count
+     */
+    public function resetSmtpCheckCount(): void
+    {
+        $this->smtpCheckCount = 0;
+        $this->lastSmtpCheck = null;
     }
 }

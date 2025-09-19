@@ -59,8 +59,16 @@ composer install
 
 3. **Configure environment:**
 ```bash
+# Option 1: Create .env file
 cp env.example .env
 # Edit .env with your database credentials
+
+# Option 2: Set environment variables directly
+export DB_HOST="your_database_host"
+export DB_PORT="3306"
+export DB_DATABASE="your_database_name"
+export DB_USERNAME="your_username"
+export DB_PASSWORD="your_password"
 ```
 
 3. **Configure the application:**

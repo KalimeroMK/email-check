@@ -8,7 +8,7 @@ class DNSValidator
     private array $cache = [];
 
     /** @param array<string, mixed> $config */
-    public function __construct(private array $config = [])
+    public function __construct(private readonly array $config = [])
     {
     }
 
