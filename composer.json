@@ -23,7 +23,10 @@
   "autoload": {
     "psr-4": {
       "KalimeroMK\\EmailCheck\\": "src/"
-    }
+    },
+    "files": [
+      "src/helpers.php"
+    ]
   },
   "scripts": {
     "validate": "php scripts/simple_extract.php",

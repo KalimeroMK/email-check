@@ -82,7 +82,7 @@ $result = $validator->check();
 
 if (!$result['domain_valid']) {
     // If the domain is invalid, try to find a suggestion
-    $suggestion = suggestDomainCorrection($userEmail); // Assuming you have implemented this function
+    $suggestion = suggestDomainCorrection($userEmail);
 
     if ($suggestion) {
         echo "Did you mean: " . $suggestion . "?";
@@ -90,6 +90,96 @@ if (!$result['domain_valid']) {
     }
 }
 ```
+
+### Testing Domain Suggestions
+
+You can test the domain suggestion functionality:
+
+```bash
+php test_domain_suggestion.php
+```
+
+This will test various common typos and show you the suggestions.
+
+---
+
+## Validation Scripts
+
+This package includes several powerful scripts for bulk email validation and analysis. All scripts are located in the `scripts/` directory.
+
+### Available Scripts
+
+#### 1. Quick Validation (`quick_validate.php`)
+Validates emails in small batches with detailed progress reporting.
+
+```bash
+php scripts/quick_validate.php
+```
+
+**Features:**
+- Processes emails in batches of 50
+- Maximum 20 batches (1000 emails total)
+- Real-time progress reporting
+- Saves invalid emails to JSON file
+- Generates detailed validation report
+
+#### 2. Simple Extract (`simple_extract.php`)
+Comprehensive email extraction and validation with progress tracking.
+
+```bash
+php scripts/simple_extract.php
+```
+
+**Features:**
+- Processes emails in batches of 1000
+- Progress tracking with time estimates
+- Saves valid and invalid emails separately
+- Generates statistics report
+- Creates progress backup files
+
+#### 3. JSON File Validation (`validate_json_file.php`)
+Validates emails from a JSON file.
+
+```bash
+php scripts/validate_json_file.php
+```
+
+**Features:**
+- Reads emails from JSON file
+- Processes in batches of 100
+- Supports both array and object formats
+- Generates separate valid/invalid files
+- Time estimation and progress tracking
+
+#### 4. Server Analysis (`analyze_server.php`)
+Advanced server analysis and email validation.
+
+```bash
+php scripts/analyze_server.php
+```
+
+**Features:**
+- Comprehensive server analysis
+- Database integration
+- Detailed logging
+- Performance metrics
+
+### Script Output Files
+
+All validation scripts generate timestamped output files:
+
+- `valid_emails_YYYY-MM-DD_HH-MM-SS.json` - Valid email addresses
+- `invalid_emails_YYYY-MM-DD_HH-MM-SS.json` - Invalid email addresses  
+- `validation_report_YYYY-MM-DD_HH-MM-SS.json` - Detailed validation report
+- `stats_YYYY-MM-DD_HH-MM-SS.json` - Statistics and metrics
+
+### Configuration
+
+Before running validation scripts, ensure your `config/app.php` is properly configured with:
+
+- Database connection settings
+- Email validation settings
+- DNS validation parameters
 
 ---
 
@@ -104,7 +194,25 @@ To update the list, run the following command from your project's root directory
 ```bash
 php scripts/update-lists.php
 ```
-*Note: Adjust the path `scripts/update-lists.php` to match your project's structure.*
+
+### Running Validation
+
+To validate emails using the package scripts:
+
+1. **Quick validation** (recommended for testing):
+   ```bash
+   php scripts/quick_validate.php
+   ```
+
+2. **Full extraction** (for large datasets):
+   ```bash
+   php scripts/simple_extract.php
+   ```
+
+3. **JSON file validation**:
+   ```bash
+   php scripts/validate_json_file.php
+   ```
 
 ---
 
