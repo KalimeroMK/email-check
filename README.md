@@ -57,6 +57,12 @@ cd email-check
 composer install
 ```
 
+3. **Configure environment:**
+```bash
+cp env.example .env
+# Edit .env with your database credentials
+```
+
 3. **Configure the application:**
    ```bash
    # Copy .env.example to .env
