@@ -111,6 +111,20 @@ class EmailValidator
         $dnsResult = $this->dnsValidator->validateDomain($domain);
         $result['dns_checks'] = $dnsResult;
 
+        $dnsWarnings = [];
+
+        if (($this->config['check_spf'] ?? false) && !($dnsResult['has_spf'] ?? false)) {
+            $dnsWarnings[] = 'Domain is missing SPF record';
+        }
+
+        if (($this->config['check_dmarc'] ?? false) && !($dnsResult['has_dmarc'] ?? false)) {
+            $dnsWarnings[] = 'Domain is missing DMARC record';
+        }
+
+        if ($dnsWarnings !== []) {
+            $result['warnings'] = array_values(array_unique(array_merge($result['warnings'], $dnsWarnings)));
+        }
+
         // 4. Advanced checks
         if ($this->config['use_advanced_validation']) {
             $advancedResult = $this->performAdvancedValidation($email);
@@ -306,6 +320,7 @@ class EmailValidator
             'email' => $email,
             'is_valid' => false,
             'errors' => [],
+            'warnings' => [],
             'dns_checks' => [],
             'smtp_checks' => [],
             'advanced_checks' => [],
@@ -325,9 +340,12 @@ class EmailValidator
             'domain' => null,
             'has_mx' => false,
             'has_a' => false,
+            'has_spf' => false,
+            'has_dmarc' => false,
             'mx_records' => [],
             'a_records' => [],
             'response_time' => 0,
+            'warnings' => [],
             'errors' => [$message],
         ];
         $result['smtp_checks'] = [

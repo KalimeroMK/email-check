@@ -22,9 +22,12 @@ class DNSValidator
             'domain' => $domain,
             'has_mx' => false,
             'has_a' => false,
+            'has_spf' => false,
+            'has_dmarc' => false,
             'mx_records' => [],
             'a_records' => [],
             'response_time' => 0,
+            'warnings' => [],
             'errors' => []
         ];
 
@@ -45,6 +48,24 @@ class DNSValidator
                 $result['has_a'] = $aResult;
                 $result['a_records'] = [];
                 // For now no details for A records
+            }
+
+            if (($this->config['check_spf'] ?? false)) {
+                $spfResult = $this->checkSPFRecord($domain);
+                $result['has_spf'] = $spfResult;
+
+                if (!$spfResult) {
+                    $result['warnings'][] = 'No SPF record found for domain';
+                }
+            }
+
+            if (($this->config['check_dmarc'] ?? false)) {
+                $dmarcResult = $this->checkDMARCRecord($domain);
+                $result['has_dmarc'] = $dmarcResult;
+
+                if (!$dmarcResult) {
+                    $result['warnings'][] = 'No DMARC record found for domain';
+                }
             }
 
         } catch (\Exception $exception) {

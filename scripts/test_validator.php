@@ -5,7 +5,25 @@ error_reporting(E_ALL & ~E_DEPRECATED);
 ini_set('log_errors', 0);
 ini_set('display_errors', 0);
 
-require_once __DIR__ . "/../vendor/autoload.php";
+$vendorAutoload = __DIR__ . "/../vendor/autoload.php";
+if (file_exists($vendorAutoload)) {
+    require_once $vendorAutoload;
+} else {
+    spl_autoload_register(function (string $class): void {
+        if (!str_starts_with($class, 'App\\')) {
+            return;
+        }
+
+        $relative = substr($class, 4);
+        $path = __DIR__ . '/../src/' . str_replace('\\', '/', $relative) . '.php';
+
+        if (file_exists($path)) {
+            require_once $path;
+        }
+    });
+
+    require_once __DIR__ . '/../src/Support/async_polyfill.php';
+}
 
 use App\ConfigManager;
 use App\EmailValidator;
@@ -16,6 +34,8 @@ $config = ConfigManager::load();
 $config['settings']['use_advanced_validation'] = true;
 $config['settings']['use_strict_rfc'] = false;
 $config['settings']['local_smtp_validation'] = true;
+$config['settings']['check_spf'] = true;
+$config['settings']['check_dmarc'] = true;
 
 $emailValidator = new EmailValidator($config['settings']);
 
@@ -51,6 +71,8 @@ echo "📊 Configuration:\n";
 echo "  - Advanced validation: " . ($config['settings']['use_advanced_validation'] ? "YES" : "NO") . "\n";
 echo "  - Strict RFC: " . ($config['settings']['use_strict_rfc'] ? "YES" : "NO") . "\n";
 echo "  - Local SMTP: " . ($config['settings']['local_smtp_validation'] ? "YES" : "NO") . "\n";
+echo "  - Check SPF records: " . ($config['settings']['check_spf'] ? "YES" : "NO") . "\n";
+echo "  - Check DMARC records: " . ($config['settings']['check_dmarc'] ? "YES" : "NO") . "\n";
 echo "  - Total test emails: " . count($testEmails) . "\n\n";
 
 echo "📧 Test emails:\n";
@@ -62,8 +84,20 @@ echo "\n";
 
 echo "🔄 Starting standalone validation...\n\n";
 
-// Execute the entire sample set asynchronously instead of validating one email at a time.
-$results = $emailValidator->validateBatch($testEmails);
+$canUseAsync = class_exists('Spatie\\Async\\Pool');
+
+if (!$canUseAsync) {
+    echo "⚠️  Async pool not available – running sequential validation.\n\n";
+}
+
+if ($canUseAsync) {
+    $results = $emailValidator->validateBatch($testEmails);
+} else {
+    $results = [];
+    foreach ($testEmails as $index => $email) {
+        $results[$index] = $emailValidator->validate($email);
+    }
+}
 
 foreach ($results as $i => $result) {
     $email = $result['email'];
@@ -106,6 +140,10 @@ foreach ($results as $i => $result) {
         echo ' - ' . $error;
     }
 
+    if (!empty($result['warnings'])) {
+        echo ' ⚠️  ' . implode(' | ', $result['warnings']);
+    }
+
     echo "\n";
 }
 
@@ -125,6 +163,10 @@ foreach ($results as $result) {
     echo "Valid: " . ($result['is_valid'] ? "YES" : "NO") . "\n";
     echo "Validator Type: " . ($result['validator_type'] ?? 'unknown') . "\n";
 
+    if (!empty($result['warnings'])) {
+        echo "Warnings: " . implode(' | ', $result['warnings']) . "\n";
+    }
+
     $advanced = $result['advanced_checks'];
     echo "Advanced checks:\n";
     echo "  - Format: " . ($advanced['format_validation'] ? "PASS" : "FAIL") . "\n";
@@ -138,6 +180,22 @@ foreach ($results as $result) {
 
     if (!empty($result['errors'])) {
         echo "Main errors: " . implode(", ", $result['errors']) . "\n";
+    }
+
+    $dns = $result['dns_checks'];
+    if ($dns !== []) {
+        echo "DNS checks:\n";
+        echo "  - MX: " . (!empty($dns['has_mx']) ? "FOUND" : "MISSING") . "\n";
+        echo "  - A fallback: " . (!empty($dns['has_a']) ? "AVAILABLE" : "UNAVAILABLE") . "\n";
+        if (array_key_exists('has_spf', $dns)) {
+            echo "  - SPF: " . (!empty($dns['has_spf']) ? "FOUND" : "MISSING") . "\n";
+        }
+        if (array_key_exists('has_dmarc', $dns)) {
+            echo "  - DMARC: " . (!empty($dns['has_dmarc']) ? "FOUND" : "MISSING") . "\n";
+        }
+        if (!empty($dns['warnings'])) {
+            echo "  - Warnings: " . implode(' | ', $dns['warnings']) . "\n";
+        }
     }
 
     echo "\n";
