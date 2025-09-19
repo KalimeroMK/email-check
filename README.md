@@ -32,7 +32,8 @@ email-check/
 │   ├── test_validator.php     # Validator test script
 │   ├── show_query_info.php    # Show query information
 │   ├── export_emails.php      # Export emails
-│   └── quick_validate.php     # Quick validation
+│   ├── quick_validate.php     # Quick validation
+│   └── extract_emails.php     # Extract emails to JSON files
 ├── config/
 │   └── app.php            # Configuration
 ├── .env.example           # Environment variables example
@@ -118,6 +119,9 @@ php scripts/validate_emails_safe.php
 # Quick validation (small number of emails)
 php scripts/quick_validate.php
 
+# Extract emails to JSON files (valid and invalid)
+php scripts/extract_emails.php
+
 # Export emails from database
 php scripts/export_emails.php
 
@@ -157,6 +161,22 @@ Scripts create the following files:
 - `valid_emails_YYYY-MM-DD_HH-MM-SS.txt` - List of valid emails
 - `invalid_emails_YYYY-MM-DD_HH-MM-SS.txt` - List of invalid emails  
 - `validation_report_YYYY-MM-DD_HH-MM-SS.json` - Detailed report
+
+### JSON Email Extraction
+
+The `extract_emails.php` script creates clean JSON files with only email addresses:
+
+- `valid_emails_YYYY-MM-DD_HH-MM-SS.json` - Array of valid email addresses
+- `invalid_emails_YYYY-MM-DD_HH-MM-SS.json` - Array of invalid email addresses
+
+Example output:
+```json
+[
+    "user1@example.com",
+    "user2@example.com",
+    "user3@example.com"
+]
+```
 
 ### JSON Validation
 For JSON validation, files are named with the source JSON name:
