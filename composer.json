@@ -34,11 +34,13 @@
     "validate": "php scripts/simple_extract.php",
     "test": "php scripts/quick_validate.php",
     "json": "php scripts/validate_json_file.php",
-    "analyze": "php scripts/analyze_server.php"
+    "analyze": "php scripts/analyze_server.php",
+    "phpstan": "./vendor/bin/phpstan analyse",
+    "test-phpunit": "./vendor/bin/phpunit"
   },
   "require-dev": {
     "rector/rector": "^1.2",
-    "phpstan/phpstan": "^1.11",
+    "phpstan/phpstan": "^1.12",
     "phpunit/phpunit": "^11.0"
   },
   "autoload-dev": {

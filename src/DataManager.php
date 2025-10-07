@@ -48,6 +48,9 @@ class DataManager
     private function getEmailsFromDatabase(?int $limit = null, int $offset = 0): array
     {
         // Use QueryManager to get correct query
+        if ($this->queryManager === null) {
+            throw new \Exception("QueryManager is not initialized");
+        }
         $query = $this->queryManager->getQuery();
 
         // If limit/offset parameters are passed, add them
@@ -58,6 +61,9 @@ class DataManager
             }
         }
 
+        if ($this->databaseManager === null) {
+            throw new \Exception("DatabaseManager is not initialized");
+        }
         $result = $this->databaseManager->executeCustomQuery($query);
 
         if (!$result['success']) {
@@ -129,7 +135,14 @@ class DataManager
      */
     private function countEmailsFromDatabase(): int
     {
+        if ($this->queryManager === null) {
+            throw new \Exception("QueryManager is not initialized");
+        }
         $countQuery = $this->queryManager->getCountQuery();
+        
+        if ($this->databaseManager === null) {
+            throw new \Exception("DatabaseManager is not initialized");
+        }
         $result = $this->databaseManager->executeCustomQuery($countQuery);
 
         if (!$result['success']) {

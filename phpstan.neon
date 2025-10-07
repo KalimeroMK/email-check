@@ -1,0 +1,15 @@
+parameters:
+    level: 8
+    paths:
+        - src/
+    excludePaths:
+        - vendor/
+        - tests/
+        - src/ExistingDatabaseManager.php
+    ignoreErrors:
+        # Ignore some common issues that might be false positives
+        - '#Call to an undefined method#'
+        - '#Access to an undefined property#'
+        - identifier: missingType.iterableValue
+        - identifier: missingType.generics
+    reportUnmatchedIgnoredErrors: false

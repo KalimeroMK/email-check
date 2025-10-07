@@ -153,7 +153,8 @@ class DomainSuggestion
         }
         
         $domain = substr($atPos, 1);
-        $localPart = substr($email, 0, strpos($email, "@"));
+        $atPosition = strpos($email, "@");
+        $localPart = $atPosition !== false ? substr($email, 0, $atPosition) : '';
         
         // First, check for exact typo matches
         if (isset($this->commonTypos[$domain])) {
