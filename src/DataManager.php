@@ -1,19 +1,19 @@
 <?php
 
-namespace App;
+namespace KalimeroMK\EmailCheck;
 
-use App\ConfigManager;
-use App\ExistingDatabaseManager;
-use App\QueryManager;
+use KalimeroMK\EmailCheck\ConfigManager;
+use KalimeroMK\EmailCheck\ExistingDatabaseManager;
+use KalimeroMK\EmailCheck\QueryManager;
 
 class DataManager
 {
     /** @var array<string, mixed> */
     private array $config;
 
-    private ?\App\ExistingDatabaseManager $databaseManager = null;
+    private ?\KalimeroMK\EmailCheck\ExistingDatabaseManager $databaseManager = null;
 
-    private ?\App\QueryManager $queryManager = null;
+    private ?\KalimeroMK\EmailCheck\QueryManager $queryManager = null;
 
     private bool $useDatabase;
 

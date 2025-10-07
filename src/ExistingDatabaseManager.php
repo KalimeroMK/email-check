@@ -1,6 +1,6 @@
 <?php
 
-namespace App;
+namespace KalimeroMK\EmailCheck;
 
 use Illuminate\Database\Capsule\Manager as Capsule;
 

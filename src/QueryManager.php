@@ -1,8 +1,8 @@
 <?php
 
-namespace App;
+namespace KalimeroMK\EmailCheck;
 
-use App\ConfigManager;
+use KalimeroMK\EmailCheck\ConfigManager;
 
 class QueryManager
 {

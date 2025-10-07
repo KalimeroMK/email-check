@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/DomainSuggestion.php';
 
-use App\DomainSuggestion;
+use KalimeroMK\EmailCheck\DomainSuggestion;
 
 /**
  * Global helper function for domain correction suggestions

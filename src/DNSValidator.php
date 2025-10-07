@@ -1,8 +1,10 @@
 <?php
 
-namespace App;
+namespace KalimeroMK\EmailCheck;
 
-class DNSValidator
+use KalimeroMK\EmailCheck\Interfaces\DnsCheckerInterface;
+
+class DNSValidator implements DnsCheckerInterface
 {
     /** @var array<string, bool> */
     private array $cache = [];
@@ -80,7 +82,7 @@ class DNSValidator
     /**
      * Checks MX records for domain
      */
-    private function checkMXRecords(string $domain): bool
+    public function checkMXRecords(string $domain): bool
     {
         // Check in cache
         $cacheKey = 'mx_' . $domain;
@@ -109,7 +111,7 @@ class DNSValidator
     /**
      * Checks A records for domain
      */
-    private function checkARecords(string $domain): bool
+    public function checkARecords(string $domain): bool
     {
         // Check in cache
         $cacheKey = 'a_' . $domain;

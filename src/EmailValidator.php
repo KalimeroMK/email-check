@@ -1,12 +1,13 @@
 <?php
 
-namespace App;
+namespace KalimeroMK\EmailCheck;
 
+use KalimeroMK\EmailCheck\Interfaces\DnsCheckerInterface;
 use Throwable;
 
 class EmailValidator
 {
-    private readonly DNSValidator $dnsValidator;
+    private readonly DnsCheckerInterface $dnsValidator;
 
 
     /** @var array<string, mixed> */
@@ -14,7 +15,7 @@ class EmailValidator
 
 
     /** @param array<string, mixed> $config */
-    public function __construct(array $config = [])
+    public function __construct(array $config = [], ?DnsCheckerInterface $dnsValidator = null)
     {
         $this->config = array_merge([
             'timeout' => 5,
@@ -27,7 +28,7 @@ class EmailValidator
             'use_strict_rfc' => false,
         ], $config);
 
-        $this->dnsValidator = new DNSValidator($this->config);
+        $this->dnsValidator = $dnsValidator ?? new DNSValidator($this->config);
     }
 
     /**
@@ -51,6 +52,9 @@ class EmailValidator
             $result['errors'][] = 'No domain found';
             return $result;
         }
+
+        // 2.1. Handle IDN (Internationalized Domain Names) conversion
+        $domain = $this->normalizeDomainForValidation($domain);
 
         // 3. DNS checks
         $dnsResult = $this->dnsValidator->validateDomain($domain);
@@ -380,6 +384,24 @@ class EmailValidator
             : 0;
 
         return $stats;
+    }
+
+    /**
+     * Normalizes domain for validation, handling IDN domains
+     */
+    private function normalizeDomainForValidation(string $domain): string
+    {
+        $domain = strtolower(trim($domain));
+        
+        // Convert IDN domains to ASCII for DNS validation
+        if (function_exists('idn_to_ascii')) {
+            $ascii = idn_to_ascii($domain, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
+            if ($ascii !== false) {
+                return $ascii;
+            }
+        }
+        
+        return $domain;
     }
 }
 
