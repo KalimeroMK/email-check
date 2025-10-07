@@ -302,4 +302,62 @@ class EmailValidatorTest extends TestCase
         $this->assertIsArray($result);
         $this->assertArrayHasKey('email', $result);
     }
+
+    public function testValidateEmailWithDisposableEmailStrictMode(): void
+    {
+        $email = 'test@10minutemail.com';
+        $validator = new EmailValidator([
+            'check_disposable' => true,
+            'disposable_strict' => true
+        ], $this->mockDnsValidator);
+
+        $result = $validator->validate($email);
+
+        $this->assertIsArray($result);
+        $this->assertFalse($result['is_valid']);
+        $this->assertTrue($result['is_disposable']);
+        $this->assertContains('Disposable email address not allowed', $result['errors']);
+        $this->assertEquals($email, $result['email']);
+    }
+
+    public function testValidateEmailWithDisposableEmailWarningMode(): void
+    {
+        $email = 'test@guerrillamail.com';
+        $validator = new EmailValidator([
+            'check_disposable' => true,
+            'disposable_strict' => false
+        ], $this->mockDnsValidator);
+
+        $result = $validator->validate($email);
+
+        $this->assertIsArray($result);
+        $this->assertTrue($result['is_disposable']);
+        $this->assertContains('Disposable email address detected', $result['warnings']);
+        $this->assertEquals($email, $result['email']);
+    }
+
+    public function testValidateEmailWithDisposableDetectionDisabled(): void
+    {
+        $email = 'test@mailinator.com';
+        $validator = new EmailValidator([
+            'check_disposable' => false
+        ], $this->mockDnsValidator);
+
+        $this->mockDnsValidator->expects($this->once())
+            ->method('validateDomain')
+            ->with('mailinator.com')
+            ->willReturn([
+                'domain' => 'mailinator.com',
+                'has_mx' => true,
+                'has_a' => true,
+                'response_time' => 50.0
+            ]);
+
+        $result = $validator->validate($email);
+
+        $this->assertIsArray($result);
+        $this->assertFalse($result['is_disposable']);
+        $this->assertTrue($result['is_valid']);
+        $this->assertEquals($email, $result['email']);
+    }
 }

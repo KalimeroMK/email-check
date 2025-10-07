@@ -3,12 +3,13 @@
 namespace KalimeroMK\EmailCheck;
 
 use KalimeroMK\EmailCheck\Interfaces\DnsCheckerInterface;
+use KalimeroMK\EmailCheck\Detectors\DisposableEmailDetector;
 use Throwable;
 
 class EmailValidator
 {
     private readonly DnsCheckerInterface $dnsValidator;
-
+    private readonly DisposableEmailDetector $disposableDetector;
 
     /** @var array<string, mixed> */
     private array $config;
@@ -26,9 +27,12 @@ class EmailValidator
             'check_dmarc' => false,
             'use_advanced_validation' => true,
             'use_strict_rfc' => false,
+            'check_disposable' => false,
+            'disposable_strict' => true,
         ], $config);
 
         $this->dnsValidator = $dnsValidator ?? new DNSValidator($this->config);
+        $this->disposableDetector = new DisposableEmailDetector();
     }
 
     /**
@@ -43,6 +47,21 @@ class EmailValidator
         if (!$this->isValidFormat($email)) {
             $result['errors'][] = 'Invalid email format';
             return $result;
+        }
+
+        // 1.1. Disposable email check (if enabled)
+        if ($this->config['check_disposable']) {
+            $isDisposable = $this->disposableDetector->isDisposable($email);
+            $result['is_disposable'] = $isDisposable;
+            
+            if ($isDisposable) {
+                if ($this->config['disposable_strict']) {
+                    $result['errors'][] = 'Disposable email address not allowed';
+                    return $result;
+                } else {
+                    $result['warnings'][] = 'Disposable email address detected';
+                }
+            }
         }
 
         // 2. Extract domain
@@ -248,6 +267,7 @@ class EmailValidator
             'email' => $email,
             'is_valid' => false,
             'domain_valid' => false,
+            'is_disposable' => false,
             'errors' => [],
             'warnings' => [],
             'dns_checks' => [],

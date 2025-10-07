@@ -14,9 +14,10 @@ A lightweight PHP library for advanced email address validation. It performs mul
 - 🔍 **Advanced Validation:** Comprehensive email format validation with length checks and forbidden character detection.
 - ⚡ **DNS Caching:** Built-in caching for DNS queries to improve performance.
 - 💡 **Typo Correction Suggestions:** Offers "Did you mean?" suggestions for common typos in domain names.
+- 🚫 **Disposable Email Detection:** Blocks known disposable/temporary email services.
 - 🔧 **Configurable:** Customizable DNS servers, timeouts, and validation options.
 - 📦 **Batch Processing:** Validate multiple emails at once.
-- 🧪 **Comprehensive Testing:** 76 tests with 240 assertions covering all functionality.
+- 🧪 **Comprehensive Testing:** 92 tests with 306 assertions covering all functionality.
 
 ---
 
@@ -123,10 +124,11 @@ The package includes comprehensive test coverage with PHPUnit:
 
 **Test Coverage:**
 
-- **76 tests** with **240 assertions**
+- **92 tests** with **306 assertions**
 - Email validation (basic and edge cases)
 - DNS validation and caching
 - Domain suggestion functionality
+- Disposable email detection
 - Helper functions
 - Error handling and edge cases
 
@@ -144,6 +146,8 @@ $validator = new EmailValidator([
     'check_dmarc' => false,            // Check DMARC records
     'use_advanced_validation' => true, // Enable advanced validation
     'use_strict_rfc' => false,         // Use strict RFC validation
+    'check_disposable' => false,       // Enable disposable email detection
+    'disposable_strict' => true,       // Strict mode for disposable emails
 ]);
 ```
 
@@ -177,6 +181,30 @@ use KalimeroMK\EmailCheck\EmailValidator;
 $cachedDnsValidator = new CachedDnsValidator();
 $validator = new EmailValidator([], $cachedDnsValidator);
 ```
+
+### Disposable Email Detection
+
+Block disposable/temporary email addresses:
+
+```php
+$validator = new EmailValidator([
+    'check_disposable' => true,        // Enable disposable detection
+    'disposable_strict' => true,       // Strict mode (block) or warning mode
+]);
+
+$result = $validator->validate('test@10minutemail.com');
+
+if ($result['is_disposable']) {
+    echo "Disposable email detected!";
+    // In strict mode: $result['is_valid'] = false
+    // In warning mode: $result['warnings'] contains warning
+}
+```
+
+**Supported disposable services:**
+- 10minutemail.com, guerrillamail.com, mailinator.com
+- tempmail.org, throwaway.email, yopmail.com
+- And 200+ other disposable email services
 
 ---
 
