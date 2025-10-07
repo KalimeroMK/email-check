@@ -208,6 +208,7 @@ class EmailValidator
         // 1. Basic format validation
         if (!$this->isValidFormat($email)) {
             $result['errors'][] = 'Invalid email format';
+            $result['smtp_status_code'] = 'invalid_format';
             return $result;
         }
 
@@ -270,6 +271,7 @@ class EmailValidator
                 $smtpResult = $this->smtpValidator->validate($email);
                 $result['smtp_valid'] = $smtpResult['smtp_valid'];
                 $result['smtp_response'] = $smtpResult['smtp_response'];
+                $result['smtp_status_code'] = $smtpResult['smtp_status_code'];
 
                 if (!$smtpResult['smtp_valid']) {
                     $result['warnings'][] = 'SMTP validation failed: ' . ($smtpResult['error'] ?? 'Unknown error');
@@ -277,6 +279,7 @@ class EmailValidator
             } catch (Exception $e) {
                 $result['smtp_valid'] = false;  // Set to false on error
                 $result['smtp_response'] = 'Error: ' . $e->getMessage();
+                $result['smtp_status_code'] = 'connection_failure';
                 $result['warnings'][] = 'SMTP validation error: ' . $e->getMessage();
             }
         }
@@ -457,6 +460,7 @@ class EmailValidator
             'dns_checks' => [],
             'advanced_checks' => [],
             'smtp_response' => null,
+            'smtp_status_code' => null,
             'timestamp' => date('Y-m-d H:i:s'),
             'validator_type' => 'standalone',
         ];

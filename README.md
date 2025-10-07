@@ -63,19 +63,16 @@ print_r($result);
 
 The `validate()` method returns an associative array with the following keys:
 
-| Key               | Type         | Description                                                                               |
-| :---------------- | :----------- | :---------------------------------------------------------------------------------------- |
-| `email`           | string       | The submitted email address.                                                              |
-| `is_valid`        | bool         | `true` if the email passes all key validations (format and domain).                       |
-| `domain_valid`    | bool         | `true` if the domain has valid MX or A DNS records.                                       |
-| `is_disposable`   | bool         | `true` if the email is from a known disposable service.                                   |
-| `smtp_valid`      | bool\|null   | `true` if SMTP validation confirms mailbox exists, `false` if failed, `null` if disabled. |
-| `errors`          | array        | Array of validation errors found.                                                         |
-| `warnings`        | array        | Array of validation warnings.                                                             |
-| `dns_checks`      | array        | Detailed DNS validation results.                                                          |
-| `advanced_checks` | array        | Advanced validation results (if enabled).                                                 |
-| `smtp_response`   | string\|null | SMTP server response (if SMTP validation enabled), `null` if disabled.                    |
-| `timestamp`       | string       | When the validation was performed.                                                        |
+| Key                | Type         | Description                                                                               |
+| :----------------- | :----------- | :---------------------------------------------------------------------------------------- |
+| `email`            | string       | The submitted email address.                                                              |
+| `is_valid`         | bool         | `true` if the email passes all key validations (format and domain).                       |
+| `domain_valid`     | bool         | `true` if the domain has valid MX or A DNS records.                                       |
+| `is_disposable`    | bool         | `true` if the email is from a known disposable service.                                   |
+| `smtp_valid`       | bool\|null   | `true` if SMTP validation confirms mailbox exists, `false` if failed, `null` if disabled. |
+| `smtp_response`    | string\|null | SMTP server response (if SMTP validation enabled), `null` if disabled.                    |
+| `smtp_status_code` | string\|null | Detailed SMTP status code (if SMTP validation enabled), `null` if disabled.               |
+| `timestamp`        | string       | When the validation was performed.                                                        |
 
 ### Advanced Usage: "Did You Mean?" Suggestions
 
@@ -130,12 +127,13 @@ The package includes comprehensive test coverage with PHPUnit:
 
 **Test Coverage:**
 
-- **112 tests** with **382 assertions**
+- **133 tests** with **484 assertions**
 - Email validation (basic and edge cases)
 - DNS validation and caching
 - Domain suggestion functionality
 - Disposable email detection
 - SMTP validation (enabled/disabled states)
+- SMTP status codes and detailed error analysis
 - Data source configuration (.env file reading)
 - Helper functions
 - Error handling and edge cases
@@ -350,13 +348,48 @@ if ($result['smtp_valid'] === null) {
 }
 ```
 
-**SMTP Validation Features:**
+**SMTP Status Codes:**
 
-- Real-time connection to MX servers
-- Mailbox existence verification
-- Rate limiting and connection management
-- Configurable timeouts and retry logic
-- Batch processing support
+The `smtp_status_code` field provides detailed information about the SMTP validation result:
+
+| Status Code          | Description                                    | Action Recommended              |
+| -------------------- | ---------------------------------------------- | ------------------------------- |
+| `success`            | Mailbox exists and can receive emails          | ✅ Accept email                 |
+| `mailbox_not_found`  | Server explicitly states mailbox doesn't exist | ❌ Reject email                 |
+| `catch_all`          | Server accepts any email (catch-all behavior)  | ⚠️ Accept but flag for review   |
+| `server_error`       | Temporary server error (4xx/5xx responses)     | ⚠️ Accept but retry later       |
+| `connection_failure` | Network/timeout issues                         | ⚠️ Accept but retry later       |
+| `invalid_format`     | Email format is invalid                        | ❌ Reject email                 |
+| `no_mx_records`      | Domain has no MX records                       | ❌ Reject email                 |
+| `disabled`           | SMTP validation is disabled                    | ✅ Use other validation methods |
+| `unknown`            | Unexpected response format                     | ⚠️ Accept but flag for review   |
+
+**Example usage with status codes:**
+
+```php
+$result = $validator->validate('user@example.com');
+
+switch ($result['smtp_status_code']) {
+    case 'success':
+        echo "Mailbox confirmed - safe to send";
+        break;
+    case 'mailbox_not_found':
+        echo "Mailbox doesn't exist - reject email";
+        break;
+    case 'catch_all':
+        echo "Catch-all server - accept but monitor";
+        break;
+    case 'server_error':
+    case 'connection_failure':
+        echo "Temporary issue - accept but retry later";
+        break;
+    case 'disabled':
+        echo "SMTP validation disabled - use DNS validation";
+        break;
+    default:
+        echo "Unknown status - manual review needed";
+}
+```
 
 > **Note:** SMTP validation is slower than DNS validation and may be blocked by some email providers. Use with caution in production environments.
 

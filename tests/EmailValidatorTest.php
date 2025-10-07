@@ -379,7 +379,10 @@ class EmailValidatorTest extends TestCase
         $this->assertIsArray($result);
         $this->assertArrayHasKey('smtp_valid', $result);
         $this->assertArrayHasKey('smtp_response', $result);
+        $this->assertArrayHasKey('smtp_status_code', $result);
+        $this->assertArrayHasKey('smtp_status_code', $result);
         $this->assertIsBool($result['smtp_valid']);
+        $this->assertIsString($result['smtp_status_code']);
         $this->assertEquals($email, $result['email']);
     }
 
@@ -396,8 +399,11 @@ class EmailValidatorTest extends TestCase
         $this->assertIsArray($result);
         $this->assertArrayHasKey('smtp_valid', $result);
         $this->assertArrayHasKey('smtp_response', $result);
+        $this->assertArrayHasKey('smtp_status_code', $result);
+        $this->assertArrayHasKey('smtp_status_code', $result);
         $this->assertNull($result['smtp_valid']);  // Should be null when disabled
         $this->assertNull($result['smtp_response']);  // Should be null when disabled
+        $this->assertNull($result['smtp_status_code']);  // Should be null when disabled
         $this->assertEquals($email, $result['email']);
     }
 
@@ -420,6 +426,7 @@ class EmailValidatorTest extends TestCase
         $this->assertIsArray($result);
         $this->assertArrayHasKey('smtp_valid', $result);
         $this->assertArrayHasKey('smtp_response', $result);
+        $this->assertArrayHasKey('smtp_status_code', $result);
         $this->assertEquals($email, $result['email']);
     }
 
@@ -438,8 +445,10 @@ class EmailValidatorTest extends TestCase
         $this->assertIsArray($result);
         $this->assertArrayHasKey('smtp_valid', $result);
         $this->assertArrayHasKey('smtp_response', $result);
+        $this->assertArrayHasKey('smtp_status_code', $result);
         $this->assertNull($result['smtp_valid']);  // Should be null when explicitly disabled
         $this->assertNull($result['smtp_response']);  // Should be null when explicitly disabled
+        $this->assertNull($result['smtp_status_code']);  // Should be null when explicitly disabled
         $this->assertEquals($email, $result['email']);
     }
 }

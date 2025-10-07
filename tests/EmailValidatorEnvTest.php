@@ -151,6 +151,15 @@ class EmailValidatorEnvTest extends TestCase
         
         // Since SMTP is enabled from .env, these should not be null
         $this->assertNotNull($result['smtp_valid'], 'smtp_valid should not be null when enabled from .env');
-        $this->assertNotNull($result['smtp_response'], 'smtp_response should not be null when enabled from .env');
+        $this->assertNotNull($result['smtp_status_code'], 'smtp_status_code should not be null when enabled from .env');
+        
+        // Should be a boolean (not null) since SMTP is enabled
+        $this->assertIsBool($result['smtp_valid']);
+        $this->assertIsString($result['smtp_status_code']);
+        
+        // smtp_response might be null for connection failures, but status code should be set
+        if ($result['smtp_status_code'] !== 'connection_failure') {
+            $this->assertNotNull($result['smtp_response'], 'smtp_response should not be null when SMTP succeeds');
+        }
     }
 }

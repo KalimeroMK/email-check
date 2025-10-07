@@ -49,6 +49,7 @@ class SMTPValidator
             'email' => $email,
             'is_valid' => false,
             'smtp_valid' => false,
+            'smtp_status_code' => 'disabled',
             'errors' => [],
             'warnings' => [],
             'smtp_response' => null,
@@ -60,6 +61,7 @@ class SMTPValidator
             $domain = $this->extractDomain($email);
             if ($domain === '' || $domain === '0') {
                 $result['errors'][] = 'Invalid email format';
+                $result['smtp_status_code'] = 'invalid_format';
                 return $result;
             }
 
@@ -67,6 +69,7 @@ class SMTPValidator
             $mxRecords = $this->getMxRecords($domain);
             if ($mxRecords === []) {
                 $result['errors'][] = 'No MX records found for domain';
+                $result['smtp_status_code'] = 'no_mx_records';
                 return $result;
             }
 
@@ -75,6 +78,7 @@ class SMTPValidator
             
             $result['smtp_valid'] = $smtpResult['valid'];
             $result['smtp_response'] = $smtpResult['response'];
+            $result['smtp_status_code'] = $smtpResult['status_code'] ?? 'unknown';
             
             if ($smtpResult['valid']) {
                 $result['is_valid'] = true;
@@ -84,6 +88,7 @@ class SMTPValidator
 
         } catch (Exception $exception) {
             $result['errors'][] = 'SMTP validation error: ' . $exception->getMessage();
+            $result['smtp_status_code'] = 'connection_failure';
         }
 
         return $result;
@@ -102,6 +107,7 @@ class SMTPValidator
             'valid' => false,
             'response' => null,
             'error' => null,
+            'status_code' => 'unknown',
         ];
 
         foreach ($mxRecords as $mxRecord) {
@@ -111,14 +117,17 @@ class SMTPValidator
                 if ($smtpResult['valid']) {
                     $result['valid'] = true;
                     $result['response'] = $smtpResult['response'];
+                    $result['status_code'] = $smtpResult['status_code'] ?? 'success';
                     break;
                 }
                 
                 $result['response'] = $smtpResult['response'];
                 $result['error'] = $smtpResult['error'];
+                $result['status_code'] = $smtpResult['status_code'] ?? 'server_error';
                 
             } catch (Exception $e) {
                 $result['error'] = 'Connection failed: ' . $e->getMessage();
+                $result['status_code'] = 'connection_failure';
                 continue;
             }
         }
@@ -139,6 +148,7 @@ class SMTPValidator
             'valid' => false,
             'response' => null,
             'error' => null,
+            'status_code' => 'unknown',
         ];
 
         $socket = null;
@@ -185,6 +195,7 @@ class SMTPValidator
             $response = $this->readSocketResponse($socket);
             
             $result['response'] = $response;
+            $result['status_code'] = $this->analyzeSmtpResponse($response);
             
             if ($this->isPositiveResponse($response)) {
                 $result['valid'] = true;
@@ -198,6 +209,7 @@ class SMTPValidator
 
         } catch (Exception $exception) {
             $result['error'] = $exception->getMessage();
+            $result['status_code'] = 'connection_failure';
         } finally {
             if ($socket !== null && $socket !== false) {
                 socket_close($socket);
@@ -205,6 +217,69 @@ class SMTPValidator
         }
 
         return $result;
+    }
+
+    /**
+     * Analyzes SMTP response and returns appropriate status code
+     * 
+     * @param string $response SMTP server response
+     * @return string Status code
+     */
+    private function analyzeSmtpResponse(string $response): string
+    {
+        $response = trim($response);
+        
+        // Extract status code (first 3 digits)
+        if (preg_match('/^(\d{3})/', $response, $matches)) {
+            $statusCode = (int)$matches[1];
+            
+            switch ($statusCode) {
+                case 250:
+                    return 'success';
+                    
+                case 550:
+                    // Check for specific 550 error messages
+                    if (str_contains($response, 'NoSuchUser') || 
+                        str_contains($response, 'does not exist') ||
+                        str_contains($response, 'User unknown') ||
+                        str_contains($response, 'Invalid recipient')) {
+                        return 'mailbox_not_found';
+                    }
+                    return 'server_error';
+                    
+                case 551:
+                case 552:
+                case 553:
+                case 554:
+                    return 'server_error';
+                    
+                case 421:
+                case 450:
+                case 451:
+                    return 'server_error';
+                    
+                case 452:
+                case 453:
+                    return 'server_error';
+                    
+                default:
+                    if ($statusCode >= 200 && $statusCode < 300) {
+                        return 'success';
+                    } elseif ($statusCode >= 400 && $statusCode < 500) {
+                        return 'server_error';
+                    } elseif ($statusCode >= 500 && $statusCode < 600) {
+                        return 'server_error';
+                    }
+                    break;
+            }
+        }
+        
+        // Check for catch-all behavior (server accepts any email)
+        if (str_contains($response, '250') || str_contains($response, 'OK')) {
+            return 'catch_all';
+        }
+        
+        return 'unknown';
     }
 
     /**
