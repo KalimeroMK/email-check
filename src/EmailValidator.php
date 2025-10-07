@@ -4,12 +4,20 @@ namespace KalimeroMK\EmailCheck;
 
 use KalimeroMK\EmailCheck\Interfaces\DnsCheckerInterface;
 use KalimeroMK\EmailCheck\Detectors\DisposableEmailDetector;
+use KalimeroMK\EmailCheck\Validators\DNSValidator;
+use KalimeroMK\EmailCheck\Validators\SMTPValidator;
+use KalimeroMK\EmailCheck\Detectors\DomainSuggestion;
+use KalimeroMK\EmailCheck\Data\ConfigManager;
+use Exception;
 use Throwable;
 
 class EmailValidator
 {
     private readonly DnsCheckerInterface $dnsValidator;
+
     private readonly DisposableEmailDetector $disposableDetector;
+
+    private readonly SMTPValidator $smtpValidator;
 
     /** @var array<string, mixed> */
     private array $config;
@@ -18,6 +26,15 @@ class EmailValidator
     /** @param array<string, mixed> $config */
     public function __construct(array $config = [], ?DnsCheckerInterface $dnsValidator = null)
     {
+        // Load configuration from .env file if available
+        $envConfig = [];
+        try {
+            $envConfig = $this->loadEnvConfig();
+        } catch (Exception) {
+            // If .env file doesn't exist or has errors, continue with defaults
+        }
+
+        // Merge configurations: defaults < .env < user provided
         $this->config = array_merge([
             'timeout' => 5,
             'dns_servers' => ['8.8.8.8', '1.1.1.1'],
@@ -29,10 +46,155 @@ class EmailValidator
             'use_strict_rfc' => false,
             'check_disposable' => false,
             'disposable_strict' => true,
-        ], $config);
+            'check_smtp' => false,
+            'smtp_timeout' => 10,
+            'smtp_max_connections' => 3,
+            'smtp_max_checks' => 50,
+            'smtp_rate_limit_delay' => 3,
+            'smtp_from_email' => 'test@example.com',
+            'smtp_from_name' => 'Email Validator',
+        ], $envConfig, $config);
 
         $this->dnsValidator = $dnsValidator ?? new DNSValidator($this->config);
         $this->disposableDetector = new DisposableEmailDetector();
+
+        // Initialize SMTP validator with SMTP-specific config
+        $smtpConfig = [
+            'timeout' => $this->config['smtp_timeout'],
+            'max_connections' => $this->config['smtp_max_connections'],
+            'max_checks' => $this->config['smtp_max_checks'],
+            'rate_limit_delay' => $this->config['smtp_rate_limit_delay'],
+            'from_email' => $this->config['smtp_from_email'],
+            'from_name' => $this->config['smtp_from_name'],
+        ];
+        $this->smtpValidator = new SMTPValidator($smtpConfig);
+    }
+
+    /**
+     * Loads configuration from .env file
+     * 
+     * @return array<string, mixed>
+     */
+    private function loadEnvConfig(): array
+    {
+        $envFile = __DIR__ . '/../.env';
+        if (!file_exists($envFile)) {
+            return [];
+        }
+
+        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $env = [];
+
+        if ($lines === false) {
+            return [];
+        }
+
+        foreach ($lines as $line) {
+            // Ignore comments
+            if (str_starts_with(trim($line), '#')) {
+                continue;
+            }
+
+            // Parse key=value pairs
+            if (str_contains($line, '=')) {
+                [$key, $value] = explode('=', $line, 2);
+                $key = trim($key);
+                $value = trim($value);
+
+                // Remove quotes if they exist
+                if ((str_starts_with($value, '"') && str_ends_with($value, '"')) ||
+                    (str_starts_with($value, "'") && str_ends_with($value, "'"))) {
+                    $value = substr($value, 1, -1);
+                }
+
+                $env[$key] = $value;
+            }
+        }
+
+        // Convert .env values to config array
+        $config = [];
+
+        // SMTP validation configuration
+        if (isset($env['CHECK_SMTP'])) {
+            $config['check_smtp'] = filter_var($env['CHECK_SMTP'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if (isset($env['SMTP_TIMEOUT'])) {
+            $config['smtp_timeout'] = (int)$env['SMTP_TIMEOUT'];
+        }
+
+        if (isset($env['SMTP_FROM_EMAIL'])) {
+            $config['smtp_from_email'] = $env['SMTP_FROM_EMAIL'];
+        }
+
+        if (isset($env['SMTP_FROM_NAME'])) {
+            $config['smtp_from_name'] = $env['SMTP_FROM_NAME'];
+        }
+
+        // Data source configuration
+        if (isset($env['DATA_SOURCE'])) {
+            $config['data_source'] = $env['DATA_SOURCE'];
+        }
+
+        if (isset($env['JSON_FILE_PATH'])) {
+            $config['json_file_path'] = $env['JSON_FILE_PATH'];
+        }
+
+        // Database configuration
+        if (isset($env['DB_HOST'])) {
+            $config['database']['host'] = $env['DB_HOST'];
+        }
+
+        if (isset($env['DB_PORT'])) {
+            $config['database']['port'] = (int)$env['DB_PORT'];
+        }
+
+        if (isset($env['DB_DATABASE'])) {
+            $config['database']['database'] = $env['DB_DATABASE'];
+        }
+
+        if (isset($env['DB_USERNAME'])) {
+            $config['database']['username'] = $env['DB_USERNAME'];
+        }
+
+        if (isset($env['DB_PASSWORD'])) {
+            $config['database']['password'] = $env['DB_PASSWORD'];
+        }
+
+        if (isset($env['DB_CHARSET'])) {
+            $config['database']['charset'] = $env['DB_CHARSET'];
+        }
+
+        if (isset($env['DB_COLLATION'])) {
+            $config['database']['collation'] = $env['DB_COLLATION'];
+        }
+
+        // Other configuration options
+        if (isset($env['TIMEOUT'])) {
+            $config['timeout'] = (int)$env['TIMEOUT'];
+        }
+
+        if (isset($env['CHECK_DISPOSABLE'])) {
+            $config['check_disposable'] = filter_var($env['CHECK_DISPOSABLE'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if (isset($env['DISPOSABLE_STRICT'])) {
+            $config['disposable_strict'] = filter_var($env['DISPOSABLE_STRICT'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if (isset($env['VALIDATION_METHOD'])) {
+            $config['validation_method'] = $env['VALIDATION_METHOD'];
+        }
+
+        if (isset($env['DEBUG'])) {
+            $config['debug'] = filter_var($env['DEBUG'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if (isset($env['VERBOSE'])) {
+            $config['verbose'] = filter_var($env['VERBOSE'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        return $config;
     }
 
     /**
@@ -53,19 +215,18 @@ class EmailValidator
         if ($this->config['check_disposable']) {
             $isDisposable = $this->disposableDetector->isDisposable($email);
             $result['is_disposable'] = $isDisposable;
-            
+
             if ($isDisposable) {
                 if ($this->config['disposable_strict']) {
                     $result['errors'][] = 'Disposable email address not allowed';
                     return $result;
-                } else {
-                    $result['warnings'][] = 'Disposable email address detected';
                 }
+                $result['warnings'][] = 'Disposable email address detected';
             }
         }
 
         // 2. Extract domain
-        $atPos = strrchr((string) $email, "@");
+        $atPos = strrchr($email, "@");
         $domain = $atPos ? substr($atPos, 1) : '';
         if ($domain === '' || $domain === '0') {
             $result['errors'][] = 'No domain found';
@@ -78,7 +239,7 @@ class EmailValidator
         // 3. DNS checks
         $dnsResult = $this->dnsValidator->validateDomain($domain);
         $result['dns_checks'] = $dnsResult;
-        
+
         // More strict DNS validation - require MX records, not just A records
         $domainValid = ($dnsResult['has_mx'] ?? false);
         $result['domain_valid'] = $domainValid;
@@ -103,7 +264,26 @@ class EmailValidator
             $result['advanced_checks'] = $advancedResult;
         }
 
-        // 5. Final validation result
+        // 5. SMTP validation (if enabled)
+        if ($this->config['check_smtp']) {
+            try {
+                $smtpResult = $this->smtpValidator->validate($email);
+                $result['smtp_valid'] = $smtpResult['smtp_valid'];
+                $result['smtp_response'] = $smtpResult['smtp_response'];
+
+                if (!$smtpResult['smtp_valid']) {
+                    $result['warnings'][] = 'SMTP validation failed: ' . ($smtpResult['error'] ?? 'Unknown error');
+                }
+            } catch (Exception $e) {
+                $result['smtp_valid'] = false;  // Set to false on error
+                $result['smtp_response'] = 'Error: ' . $e->getMessage();
+                $result['warnings'][] = 'SMTP validation error: ' . $e->getMessage();
+            }
+        }
+
+        // If SMTP is disabled, smtp_valid remains null and smtp_response remains null
+
+        // 6. Final validation result
         if ($domainValid) {
             $result['is_valid'] = true;
         } else {
@@ -145,17 +325,17 @@ class EmailValidator
     private function performAdvancedFormatValidation(string $email): bool
     {
         // Check length
-        if (strlen((string) $email) > 254) {
+        if (strlen($email) > 254) {
             return false;
         }
 
         // Check that it has @ symbol
-        if (substr_count((string) $email, '@') !== 1) {
+        if (substr_count($email, '@') !== 1) {
             return false;
         }
 
         // Split into local and domain parts
-        [$local, $domain] = explode('@', (string) $email);
+        [$local, $domain] = explode('@', $email);
 
         // Check local part
         if (strlen($local) > 64) {
@@ -181,11 +361,12 @@ class EmailValidator
         }
 
         // Check for forbidden characters
-        if (preg_match('/[<>]/', (string) $email)) {
+        if (preg_match('/[<>]/', $email)) {
             return false;
         }
+
         // Check for consecutive dots
-        return !str_contains((string) $email, '..');
+        return !str_contains($email, '..');
     }
 
     /**
@@ -208,16 +389,16 @@ class EmailValidator
             $advancedResult['format_validation'] = $this->performAdvancedFormatValidation($email);
 
             // Length validation
-            $advancedResult['length_validation'] = strlen((string) $email) <= 254;
+            $advancedResult['length_validation'] = strlen($email) <= 254;
 
             // Domain validation
-            $atPos = strrchr((string) $email, "@");
+            $atPos = strrchr($email, "@");
             $domain = $atPos ? substr($atPos, 1) : '';
             $advancedResult['domain_validation'] = $this->validateDomainFormat($domain);
 
             // Local part validation
-            $atPos = strpos((string) $email, "@");
-            $local = $atPos !== false ? substr((string) $email, 0, $atPos) : '';
+            $atPos = strpos($email, "@");
+            $local = $atPos !== false ? substr($email, 0, $atPos) : '';
             $advancedResult['local_validation'] = $this->validateLocalFormat($local);
 
         } catch (\Exception $exception) {
@@ -241,6 +422,7 @@ class EmailValidator
         if (!preg_match('/\.[a-zA-Z]{2,}$/', $domain)) {
             return false;
         }
+
         // Check for forbidden characters
         return !preg_match('/[<>]/', $domain);
     }
@@ -254,6 +436,7 @@ class EmailValidator
         if ($local === '' || $local === '0' || strlen($local) > 64) {
             return false;
         }
+
         // Check for forbidden characters
         return !preg_match('/[<>]/', $local);
     }
@@ -268,10 +451,12 @@ class EmailValidator
             'is_valid' => false,
             'domain_valid' => false,
             'is_disposable' => false,
+            'smtp_valid' => null,  // Will be set to false if SMTP is enabled, null if disabled
             'errors' => [],
             'warnings' => [],
             'dns_checks' => [],
             'advanced_checks' => [],
+            'smtp_response' => null,
             'timestamp' => date('Y-m-d H:i:s'),
             'validator_type' => 'standalone',
         ];
@@ -412,7 +597,7 @@ class EmailValidator
     private function normalizeDomainForValidation(string $domain): string
     {
         $domain = strtolower(trim($domain));
-        
+
         // Convert IDN domains to ASCII for DNS validation
         if (function_exists('idn_to_ascii')) {
             $ascii = idn_to_ascii($domain, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
@@ -420,8 +605,80 @@ class EmailValidator
                 return $ascii;
             }
         }
-        
+
         return $domain;
+    }
+
+    /**
+     * Gets the configured data source
+     * 
+     * @return string 'database' or 'json'
+     */
+    public function getDataSource(): string
+    {
+        return $this->config['data_source'] ?? 'database';
+    }
+
+    /**
+     * Checks if database is configured as data source
+     * 
+     * @return bool
+     */
+    public function useDatabase(): bool
+    {
+        return $this->getDataSource() === 'database';
+    }
+
+    /**
+     * Checks if JSON file is configured as data source
+     * 
+     * @return bool
+     */
+    public function useJsonFile(): bool
+    {
+        return $this->getDataSource() === 'json';
+    }
+
+    /**
+     * Gets the JSON file path for data source
+     * 
+     * @return string
+     */
+    public function getJsonFilePath(): string
+    {
+        return $this->config['json_file_path'] ?? 'emails.json';
+    }
+
+    /**
+     * Gets database configuration
+     * 
+     * @return array<string, mixed>
+     */
+    public function getDatabaseConfig(): array
+    {
+        return $this->config['database'] ?? [];
+    }
+
+    /**
+     * Gets a configuration value
+     * 
+     * @param string $key Configuration key
+     * @param mixed $default Default value
+     * @return mixed
+     */
+    public function getConfig(string $key, mixed $default = null): mixed
+    {
+        return $this->config[$key] ?? $default;
+    }
+
+    /**
+     * Gets all configuration
+     * 
+     * @return array<string, mixed>
+     */
+    public function getAllConfig(): array
+    {
+        return $this->config;
     }
 }
 

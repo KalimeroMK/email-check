@@ -2,7 +2,7 @@
 
 namespace KalimeroMK\EmailCheck\Tests;
 
-use KalimeroMK\EmailCheck\CachedDnsValidator;
+use KalimeroMK\EmailCheck\Validators\CachedDnsValidator;
 use KalimeroMK\EmailCheck\Interfaces\DnsCheckerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;

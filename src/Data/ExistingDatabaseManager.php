@@ -1,6 +1,6 @@
 <?php
 
-namespace KalimeroMK\EmailCheck;
+namespace KalimeroMK\EmailCheck\Data;
 
 use Illuminate\Database\Capsule\Manager as Capsule;
 
@@ -348,7 +348,7 @@ class ExistingDatabaseManager
     {
         try {
             // Безбедност - дозволуваме само SELECT queries
-            $sql = trim((string) $sql);
+            $sql = trim($sql);
             if (!preg_match('/^SELECT\s+/i', $sql)) {
                 return [
                     'success' => false,

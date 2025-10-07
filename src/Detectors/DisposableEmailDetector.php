@@ -39,6 +39,7 @@ class DisposableEmailDetector
         if (!$atPos) {
             return '';
         }
+
         return substr($atPos, 1);
     }
 

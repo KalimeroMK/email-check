@@ -1,6 +1,6 @@
 <?php
 
-namespace KalimeroMK\EmailCheck;
+namespace KalimeroMK\EmailCheck\Data;
 
 class ConfigManager
 {
@@ -131,6 +131,23 @@ class ConfigManager
 
         if (isset(self::$env['LOCAL_SMTP_PORT'])) {
             $config['settings']['local_smtp_port'] = (int)self::$env['LOCAL_SMTP_PORT'];
+        }
+
+        // SMTP validation configuration
+        if (isset(self::$env['CHECK_SMTP'])) {
+            $config['check_smtp'] = filter_var(self::$env['CHECK_SMTP'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if (isset(self::$env['SMTP_TIMEOUT'])) {
+            $config['smtp_timeout'] = (int)self::$env['SMTP_TIMEOUT'];
+        }
+
+        if (isset(self::$env['SMTP_FROM_EMAIL'])) {
+            $config['smtp_from_email'] = self::$env['SMTP_FROM_EMAIL'];
+        }
+
+        if (isset(self::$env['SMTP_FROM_NAME'])) {
+            $config['smtp_from_name'] = self::$env['SMTP_FROM_NAME'];
         }
 
         // Batch processing configuration

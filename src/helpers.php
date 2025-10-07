@@ -1,8 +1,8 @@
 <?php
 
-require_once __DIR__ . '/DomainSuggestion.php';
+require_once __DIR__ . '/Detectors/DomainSuggestion.php';
 
-use KalimeroMK\EmailCheck\DomainSuggestion;
+use KalimeroMK\EmailCheck\Detectors\DomainSuggestion;
 
 /**
  * Global helper function for domain correction suggestions

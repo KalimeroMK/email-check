@@ -1,6 +1,6 @@
 <?php
 
-namespace KalimeroMK\EmailCheck;
+namespace KalimeroMK\EmailCheck\Validators;
 
 use KalimeroMK\EmailCheck\Interfaces\DnsCheckerInterface;
 
@@ -99,7 +99,7 @@ class DNSValidator implements DnsCheckerInterface
             if (getmxrr($domain, $mxRecords, $mxWeight)) {
                 $hasMx = true;
             }
-        } catch (\Exception $exception) {
+        } catch (\Exception) {
             // Ignore errors for now
         }
 
@@ -126,7 +126,7 @@ class DNSValidator implements DnsCheckerInterface
             if ($ip !== $domain && filter_var($ip, FILTER_VALIDATE_IP)) {
                 $hasA = true;
             }
-        } catch (\Exception $exception) {
+        } catch (\Exception) {
             // Ignore errors for now
         }
 
@@ -152,13 +152,14 @@ class DNSValidator implements DnsCheckerInterface
             if ($txtRecords === false) {
                 $txtRecords = [];
             }
+
             foreach ($txtRecords as $record) {
                 if (str_starts_with((string) $record['txt'], 'v=spf1')) {
                     $hasSpf = true;
                     break;
                 }
             }
-        } catch (\Exception $exception) {
+        } catch (\Exception) {
             // Ignore errors for now
         }
 
@@ -184,13 +185,14 @@ class DNSValidator implements DnsCheckerInterface
             if ($txtRecords === false) {
                 $txtRecords = [];
             }
+
             foreach ($txtRecords as $record) {
                 if (str_starts_with((string) $record['txt'], 'v=DMARC1')) {
                     $hasDmarc = true;
                     break;
                 }
             }
-        } catch (\Exception $exception) {
+        } catch (\Exception) {
             // Ignore errors for now
         }
 

@@ -4,6 +4,8 @@ namespace KalimeroMK\EmailCheck\Tests;
 
 use KalimeroMK\EmailCheck\EmailValidator;
 use KalimeroMK\EmailCheck\Interfaces\DnsCheckerInterface;
+use KalimeroMK\EmailCheck\Validators\DNSValidator;
+use KalimeroMK\EmailCheck\Detectors\DisposableEmailDetector;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -358,6 +360,86 @@ class EmailValidatorTest extends TestCase
         $this->assertIsArray($result);
         $this->assertFalse($result['is_disposable']);
         $this->assertTrue($result['is_valid']);
+        $this->assertEquals($email, $result['email']);
+    }
+
+    public function testValidateEmailWithSmtpValidationEnabled(): void
+    {
+        $email = 'test@gmail.com';
+        
+        $validator = new EmailValidator([
+            'check_smtp' => true,
+            'smtp_timeout' => 5,
+            'smtp_from_email' => 'test@example.com',
+            'smtp_from_name' => 'Test Validator',
+        ]);
+        
+        $result = $validator->validate($email);
+        
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('smtp_valid', $result);
+        $this->assertArrayHasKey('smtp_response', $result);
+        $this->assertIsBool($result['smtp_valid']);
+        $this->assertEquals($email, $result['email']);
+    }
+
+    public function testValidateEmailWithSmtpValidationDisabled(): void
+    {
+        $email = 'test@gmail.com';
+        
+        $validator = new EmailValidator([
+            'check_smtp' => false,
+        ]);
+        
+        $result = $validator->validate($email);
+        
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('smtp_valid', $result);
+        $this->assertArrayHasKey('smtp_response', $result);
+        $this->assertNull($result['smtp_valid']);  // Should be null when disabled
+        $this->assertNull($result['smtp_response']);  // Should be null when disabled
+        $this->assertEquals($email, $result['email']);
+    }
+
+    public function testValidateEmailWithSmtpConfiguration(): void
+    {
+        $email = 'test@example.com';
+        
+        $validator = new EmailValidator([
+            'check_smtp' => true,
+            'smtp_timeout' => 10,
+            'smtp_max_connections' => 5,
+            'smtp_max_checks' => 100,
+            'smtp_rate_limit_delay' => 2,
+            'smtp_from_email' => 'validator@test.com',
+            'smtp_from_name' => 'Email Validator Test',
+        ]);
+        
+        $result = $validator->validate($email);
+        
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('smtp_valid', $result);
+        $this->assertArrayHasKey('smtp_response', $result);
+        $this->assertEquals($email, $result['email']);
+    }
+
+    public function testValidateEmailWithDefaultConfiguration(): void
+    {
+        $email = 'test@gmail.com';
+        
+        // Test with default configuration (no SMTP options specified)
+        // Explicitly disable SMTP to ensure it's null
+        $validator = new EmailValidator([
+            'check_smtp' => false,
+        ]);
+        
+        $result = $validator->validate($email);
+        
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('smtp_valid', $result);
+        $this->assertArrayHasKey('smtp_response', $result);
+        $this->assertNull($result['smtp_valid']);  // Should be null when explicitly disabled
+        $this->assertNull($result['smtp_response']);  // Should be null when explicitly disabled
         $this->assertEquals($email, $result['email']);
     }
 }

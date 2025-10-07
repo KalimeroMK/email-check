@@ -1,8 +1,8 @@
 <?php
 
-namespace KalimeroMK\EmailCheck;
+namespace KalimeroMK\EmailCheck\Data;
 
-use KalimeroMK\EmailCheck\ConfigManager;
+use KalimeroMK\EmailCheck\Data\ConfigManager;
 
 class QueryManager
 {
@@ -114,7 +114,7 @@ class QueryManager
     private function convertToCountQuery(string $query): string
     {
         // Find the SELECT part and replace it with COUNT
-        if (preg_match('/SELECT\s+.*?\s+FROM\s+(.+)/i', (string) $query, $matches)) {
+        if (preg_match('/SELECT\s+.*?\s+FROM\s+(.+)/i', $query, $matches)) {
             $fromPart = $matches[1];
             return 'SELECT COUNT(*) as total FROM ' . $fromPart;
         }

@@ -1,6 +1,6 @@
 <?php
 
-namespace KalimeroMK\EmailCheck;
+namespace KalimeroMK\EmailCheck\Detectors;
 
 class DomainSuggestion
 {

@@ -15,9 +15,10 @@ A lightweight PHP library for advanced email address validation. It performs mul
 - ⚡ **DNS Caching:** Built-in caching for DNS queries to improve performance.
 - 💡 **Typo Correction Suggestions:** Offers "Did you mean?" suggestions for common typos in domain names.
 - 🚫 **Disposable Email Detection:** Blocks known disposable/temporary email services.
+- 📧 **SMTP Validation:** Optional real-time SMTP validation to verify mailbox existence (disabled by default).
 - 🔧 **Configurable:** Customizable DNS servers, timeouts, and validation options.
 - 📦 **Batch Processing:** Validate multiple emails at once.
-- 🧪 **Comprehensive Testing:** 92 tests with 306 assertions covering all functionality.
+- 🧪 **Comprehensive Testing:** 112 tests with 382 assertions covering all functionality.
 
 ---
 
@@ -62,16 +63,19 @@ print_r($result);
 
 The `validate()` method returns an associative array with the following keys:
 
-| Key               | Type   | Description                                                         |
-| :---------------- | :----- | :------------------------------------------------------------------ |
-| `email`           | string | The submitted email address.                                        |
-| `is_valid`        | bool   | `true` if the email passes all key validations (format and domain). |
-| `domain_valid`    | bool   | `true` if the domain has valid MX or A DNS records.                 |
-| `errors`          | array  | Array of validation errors found.                                   |
-| `warnings`        | array  | Array of validation warnings.                                       |
-| `dns_checks`      | array  | Detailed DNS validation results.                                    |
-| `advanced_checks` | array  | Advanced validation results (if enabled).                           |
-| `timestamp`       | string | When the validation was performed.                                  |
+| Key               | Type         | Description                                                                               |
+| :---------------- | :----------- | :---------------------------------------------------------------------------------------- |
+| `email`           | string       | The submitted email address.                                                              |
+| `is_valid`        | bool         | `true` if the email passes all key validations (format and domain).                       |
+| `domain_valid`    | bool         | `true` if the domain has valid MX or A DNS records.                                       |
+| `is_disposable`   | bool         | `true` if the email is from a known disposable service.                                   |
+| `smtp_valid`      | bool\|null   | `true` if SMTP validation confirms mailbox exists, `false` if failed, `null` if disabled. |
+| `errors`          | array        | Array of validation errors found.                                                         |
+| `warnings`        | array        | Array of validation warnings.                                                             |
+| `dns_checks`      | array        | Detailed DNS validation results.                                                          |
+| `advanced_checks` | array        | Advanced validation results (if enabled).                                                 |
+| `smtp_response`   | string\|null | SMTP server response (if SMTP validation enabled), `null` if disabled.                    |
+| `timestamp`       | string       | When the validation was performed.                                                        |
 
 ### Advanced Usage: "Did You Mean?" Suggestions
 
@@ -120,19 +124,107 @@ The package includes comprehensive test coverage with PHPUnit:
 ./vendor/bin/phpunit tests/DomainSuggestionTest.php
 ./vendor/bin/phpunit tests/HelpersTest.php
 ./vendor/bin/phpunit tests/EmailValidatorEdgeCasesTest.php
+./vendor/bin/phpunit tests/SMTPValidatorTest.php
+./vendor/bin/phpunit tests/DisposableEmailDetectorTest.php
 ```
 
 **Test Coverage:**
 
-- **92 tests** with **306 assertions**
+- **112 tests** with **382 assertions**
 - Email validation (basic and edge cases)
 - DNS validation and caching
 - Domain suggestion functionality
 - Disposable email detection
+- SMTP validation (enabled/disabled states)
+- Data source configuration (.env file reading)
 - Helper functions
 - Error handling and edge cases
 
 ### Configuration
+
+#### Environment Variables (.env)
+
+Copy the `env.example` file to `.env` and configure your settings:
+
+```bash
+cp env.example .env
+```
+
+**Data Source Configuration:**
+
+```env
+DATA_SOURCE=database          # 'database' or 'json'
+JSON_FILE_PATH=emails.json   # Path to JSON file if using JSON source
+```
+
+**Database Configuration (used when DATA_SOURCE=database):**
+
+```env
+DB_HOST=192.168.142.41
+DB_PORT=3307
+DB_DATABASE=your_database_name
+DB_USERNAME=your_username
+DB_PASSWORD=your_password_here
+DB_CHARSET=utf8mb4
+DB_COLLATION=utf8mb4_unicode_ci
+```
+
+**Email Validation Settings:**
+
+```env
+SMTP_MAX_CONNECTIONS=3
+SMTP_MAX_CHECKS=50
+SMTP_RATE_LIMIT_DELAY=3
+LOCAL_SMTP_VALIDATION=true
+LOCAL_SMTP_HOST=localhost
+LOCAL_SMTP_PORT=1025
+FROM_EMAIL=test@example.com
+FROM_NAME=Email Validator
+```
+
+**SMTP Validation Settings:**
+
+```env
+CHECK_SMTP=false                    # Enable SMTP validation (disabled by default)
+SMTP_TIMEOUT=10                     # SMTP connection timeout in seconds
+SMTP_FROM_EMAIL=test@example.com   # From email for SMTP validation
+SMTP_FROM_NAME=Email Validator      # From name for SMTP validation
+```
+
+**Batch Processing:**
+
+```env
+BATCH_SIZE=100
+MAX_CONCURRENT=10
+ASYNC_CHUNK_SIZE=100
+ASYNC_TIMEOUT=30
+ASYNC_SLEEP_TIME=50000
+MEMORY_LIMIT=512M
+MAX_EXECUTION_TIME=300
+```
+
+**Additional Configuration Options:**
+
+```env
+# Data Source Configuration
+DATA_SOURCE=database          # 'database' or 'json'
+JSON_FILE_PATH=emails.json   # Path to JSON file if using JSON source
+
+# Validation Method
+VALIDATION_METHOD=advanced    # 'basic', 'advanced', or 'strict'
+
+# Output Configuration
+SAVE_RESULTS=true            # Save validation results to files
+OUTPUT_DIR=./output          # Directory for output files
+
+# Debug Configuration
+DEBUG=false                  # Enable debug mode
+VERBOSE=false               # Enable verbose output
+```
+
+> **Note:** The `.env` file is automatically loaded by the `ConfigManager` class. Make sure to create your `.env` file based on `env.example` before running any validation scripts.
+
+#### Programmatic Configuration
 
 The `EmailValidator` accepts configuration options:
 
@@ -148,6 +240,13 @@ $validator = new EmailValidator([
     'use_strict_rfc' => false,         // Use strict RFC validation
     'check_disposable' => false,       // Enable disposable email detection
     'disposable_strict' => true,       // Strict mode for disposable emails
+    'check_smtp' => false,             // Enable SMTP validation (disabled by default)
+    'smtp_timeout' => 10,             // SMTP connection timeout
+    'smtp_max_connections' => 3,       // Max concurrent SMTP connections
+    'smtp_max_checks' => 50,          // Max SMTP checks per batch
+    'smtp_rate_limit_delay' => 3,     // Delay between SMTP checks
+    'smtp_from_email' => 'test@example.com', // From email for SMTP
+    'smtp_from_name' => 'Email Validator',   // From name for SMTP
 ]);
 ```
 
@@ -202,9 +301,118 @@ if ($result['is_disposable']) {
 ```
 
 **Supported disposable services:**
+
 - 10minutemail.com, guerrillamail.com, mailinator.com
 - tempmail.org, throwaway.email, yopmail.com
 - And 200+ other disposable email services
+
+#### SMTP Validation (Optional)
+
+Enable real-time SMTP validation to verify mailbox existence. **This feature is disabled by default** and must be explicitly enabled:
+
+```php
+$validator = new EmailValidator([
+    'check_smtp' => true,              // Enable SMTP validation (disabled by default)
+    'smtp_timeout' => 10,             // Connection timeout
+    'smtp_from_email' => 'validator@yourdomain.com',
+    'smtp_from_name' => 'Email Validator',
+]);
+
+$result = $validator->validate('user@example.com');
+
+if ($result['smtp_valid'] === true) {
+    echo "Mailbox exists and can receive emails!";
+} elseif ($result['smtp_valid'] === false) {
+    echo "SMTP validation failed: " . $result['smtp_response'];
+} else {
+    echo "SMTP validation is disabled";
+}
+```
+
+**When SMTP validation is disabled:**
+
+- `smtp_valid` will be `null`
+- `smtp_response` will be `null`
+- No SMTP connection attempts are made
+- Validation is faster and more reliable
+
+**Checking SMTP status:**
+
+```php
+$result = $validator->validate('user@example.com');
+
+if ($result['smtp_valid'] === null) {
+    echo "SMTP validation is disabled";
+} elseif ($result['smtp_valid'] === true) {
+    echo "SMTP validation passed - mailbox exists";
+} else {
+    echo "SMTP validation failed - mailbox may not exist";
+}
+```
+
+**SMTP Validation Features:**
+
+- Real-time connection to MX servers
+- Mailbox existence verification
+- Rate limiting and connection management
+- Configurable timeouts and retry logic
+- Batch processing support
+
+> **Note:** SMTP validation is slower than DNS validation and may be blocked by some email providers. Use with caution in production environments.
+
+#### Data Source Configuration
+
+The EmailValidator can be configured to use either a database or JSON files as the data source:
+
+**Using Database (default):**
+
+```php
+// In .env file:
+DATA_SOURCE=database
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=email_db
+DB_USERNAME=user
+DB_PASSWORD=password
+
+$validator = new EmailValidator();
+if ($validator->useDatabase()) {
+    echo "Using database as data source";
+    $dbConfig = $validator->getDatabaseConfig();
+    echo "Database: " . $dbConfig['database'];
+}
+```
+
+**Using JSON Files:**
+
+```php
+// In .env file:
+DATA_SOURCE=json
+JSON_FILE_PATH=custom_emails.json
+
+$validator = new EmailValidator();
+if ($validator->useJsonFile()) {
+    echo "Using JSON file as data source";
+    echo "File path: " . $validator->getJsonFilePath();
+}
+```
+
+**Checking Data Source:**
+
+```php
+$validator = new EmailValidator();
+
+switch ($validator->getDataSource()) {
+    case 'database':
+        echo "Database mode enabled";
+        break;
+    case 'json':
+        echo "JSON file mode enabled";
+        break;
+    default:
+        echo "Unknown data source";
+}
+```
 
 ---
 
@@ -288,11 +496,24 @@ All validation scripts generate timestamped output files:
 
 ### Configuration
 
-Before running validation scripts, ensure your `config/app.php` is properly configured with:
+Before running validation scripts, ensure your configuration is properly set up:
 
-- Database connection settings
-- Email validation settings
-- DNS validation parameters
+1. **Copy the environment file:**
+
+   ```bash
+   cp env.example .env
+   ```
+
+2. **Configure your `.env` file** with your specific settings:
+
+   - Database connection details
+   - Email validation parameters
+   - Batch processing settings
+   - Output directory preferences
+
+3. **Verify `config/app.php`** contains the base configuration structure.
+
+The scripts will automatically load settings from your `.env` file using the `ConfigManager` class.
 
 ---
 

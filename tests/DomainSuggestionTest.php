@@ -2,7 +2,7 @@
 
 namespace KalimeroMK\EmailCheck\Tests;
 
-use KalimeroMK\EmailCheck\DomainSuggestion;
+use KalimeroMK\EmailCheck\Detectors\DomainSuggestion;
 use PHPUnit\Framework\TestCase;
 
 class DomainSuggestionTest extends TestCase

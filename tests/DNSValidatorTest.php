@@ -2,7 +2,7 @@
 
 namespace KalimeroMK\EmailCheck\Tests;
 
-use KalimeroMK\EmailCheck\DNSValidator;
+use KalimeroMK\EmailCheck\Validators\DNSValidator;
 use PHPUnit\Framework\TestCase;
 
 class DNSValidatorTest extends TestCase

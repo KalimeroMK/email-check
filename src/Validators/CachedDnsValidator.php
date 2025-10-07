@@ -1,6 +1,6 @@
 <?php
 
-namespace KalimeroMK\EmailCheck;
+namespace KalimeroMK\EmailCheck\Validators;
 
 use KalimeroMK\EmailCheck\Interfaces\DnsCheckerInterface;
 use Psr\SimpleCache\CacheInterface;
@@ -14,7 +14,9 @@ use Symfony\Component\Cache\Psr16Cache;
 class CachedDnsValidator implements DnsCheckerInterface
 {
     private readonly DnsCheckerInterface $dnsValidator;
+
     private readonly CacheInterface $cache;
+
     private readonly int $cacheTtl;
 
     /**
@@ -49,7 +51,7 @@ class CachedDnsValidator implements DnsCheckerInterface
                 $cached['from_cache'] = true;
                 return $cached;
             }
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             // Fallback to direct validation if cache fails
         }
 
@@ -58,7 +60,7 @@ class CachedDnsValidator implements DnsCheckerInterface
 
         try {
             $this->cache->set($cacheKey, $result, $this->cacheTtl);
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             // Continue even if caching fails
         }
 
@@ -78,7 +80,7 @@ class CachedDnsValidator implements DnsCheckerInterface
             if ($cached !== null) {
                 return $cached;
             }
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             // Fallback to direct check
         }
 
@@ -86,7 +88,7 @@ class CachedDnsValidator implements DnsCheckerInterface
 
         try {
             $this->cache->set($cacheKey, $result, $this->cacheTtl);
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             // Continue even if caching fails
         }
 
@@ -106,7 +108,7 @@ class CachedDnsValidator implements DnsCheckerInterface
             if ($cached !== null) {
                 return $cached;
             }
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             // Fallback to direct check
         }
 
@@ -114,7 +116,7 @@ class CachedDnsValidator implements DnsCheckerInterface
 
         try {
             $this->cache->set($cacheKey, $result, $this->cacheTtl);
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             // Continue even if caching fails
         }
 
@@ -134,7 +136,7 @@ class CachedDnsValidator implements DnsCheckerInterface
             if ($cached !== null) {
                 return $cached;
             }
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             // Fallback to direct check
         }
 
@@ -142,7 +144,7 @@ class CachedDnsValidator implements DnsCheckerInterface
 
         try {
             $this->cache->set($cacheKey, $result, $this->cacheTtl);
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             // Continue even if caching fails
         }
 
@@ -162,7 +164,7 @@ class CachedDnsValidator implements DnsCheckerInterface
             if ($cached !== null) {
                 return $cached;
             }
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             // Fallback to direct check
         }
 
@@ -170,7 +172,7 @@ class CachedDnsValidator implements DnsCheckerInterface
 
         try {
             $this->cache->set($cacheKey, $result, $this->cacheTtl);
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             // Continue even if caching fails
         }
 
@@ -183,10 +185,10 @@ class CachedDnsValidator implements DnsCheckerInterface
     public function clearCache(): void
     {
         $this->dnsValidator->clearCache();
-        
+
         try {
             $this->cache->clear();
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             // Continue even if cache clear fails
         }
     }
@@ -201,7 +203,7 @@ class CachedDnsValidator implements DnsCheckerInterface
         $stats = $this->dnsValidator->getCacheStats();
         $stats['cache_type'] = 'persistent';
         $stats['cache_ttl'] = $this->cacheTtl;
-        
+
         return $stats;
     }
 
@@ -212,7 +214,7 @@ class CachedDnsValidator implements DnsCheckerInterface
     private function normalizeDomain(string $domain): string
     {
         $domain = strtolower(trim($domain));
-        
+
         // Convert IDN domains to ASCII for consistent caching
         if (function_exists('idn_to_ascii')) {
             $ascii = idn_to_ascii($domain, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
@@ -220,7 +222,7 @@ class CachedDnsValidator implements DnsCheckerInterface
                 $domain = $ascii;
             }
         }
-        
+
         return $domain;
     }
 }

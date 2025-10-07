@@ -5,7 +5,7 @@ parameters:
     excludePaths:
         - vendor/
         - tests/
-        - src/ExistingDatabaseManager.php
+        - src/Data/ExistingDatabaseManager.php
     ignoreErrors:
         # Ignore some common issues that might be false positives
         - '#Call to an undefined method#'

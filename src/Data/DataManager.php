@@ -1,21 +1,21 @@
 <?php
 
-namespace KalimeroMK\EmailCheck;
+namespace KalimeroMK\EmailCheck\Data;
 
-use KalimeroMK\EmailCheck\ConfigManager;
-use KalimeroMK\EmailCheck\ExistingDatabaseManager;
-use KalimeroMK\EmailCheck\QueryManager;
+use KalimeroMK\EmailCheck\Data\ConfigManager;
+use KalimeroMK\EmailCheck\Data\ExistingDatabaseManager;
+use KalimeroMK\EmailCheck\Data\QueryManager;
 
 class DataManager
 {
     /** @var array<string, mixed> */
-    private array $config;
+    private readonly array $config;
 
-    private ?\KalimeroMK\EmailCheck\ExistingDatabaseManager $databaseManager = null;
+    private ?ExistingDatabaseManager $databaseManager = null;
 
-    private ?\KalimeroMK\EmailCheck\QueryManager $queryManager = null;
+    private ?QueryManager $queryManager = null;
 
-    private bool $useDatabase;
+    private readonly bool $useDatabase;
 
     /** @param array<string, mixed>|null $config */
     public function __construct(?array $config = null)
@@ -38,6 +38,7 @@ class DataManager
         if ($this->useDatabase) {
             return $this->getEmailsFromDatabase($limit, $offset);
         }
+
         return $this->getEmailsFromJson($limit, $offset);
     }
 
@@ -48,9 +49,10 @@ class DataManager
     private function getEmailsFromDatabase(?int $limit = null, int $offset = 0): array
     {
         // Use QueryManager to get correct query
-        if ($this->queryManager === null) {
+        if (!$this->queryManager instanceof \KalimeroMK\EmailCheck\Data\QueryManager) {
             throw new \Exception("QueryManager is not initialized");
         }
+
         $query = $this->queryManager->getQuery();
 
         // If limit/offset parameters are passed, add them
@@ -61,9 +63,10 @@ class DataManager
             }
         }
 
-        if ($this->databaseManager === null) {
+        if (!$this->databaseManager instanceof \KalimeroMK\EmailCheck\Data\ExistingDatabaseManager) {
             throw new \Exception("DatabaseManager is not initialized");
         }
+
         $result = $this->databaseManager->executeCustomQuery($query);
 
         if (!$result['success']) {
@@ -89,6 +92,7 @@ class DataManager
         if ($content === false) {
             throw new \Exception('Could not read JSON file: ' . $jsonFile);
         }
+
         $emails = json_decode($content, true);
         if ($emails === null) {
             throw new \Exception('Invalid JSON in file: ' . $jsonFile);
@@ -127,6 +131,7 @@ class DataManager
         if ($this->useDatabase) {
             return $this->countEmailsFromDatabase();
         }
+
         return $this->countEmailsFromJson();
     }
 
@@ -135,14 +140,16 @@ class DataManager
      */
     private function countEmailsFromDatabase(): int
     {
-        if ($this->queryManager === null) {
+        if (!$this->queryManager instanceof \KalimeroMK\EmailCheck\Data\QueryManager) {
             throw new \Exception("QueryManager is not initialized");
         }
+
         $countQuery = $this->queryManager->getCountQuery();
-        
-        if ($this->databaseManager === null) {
+
+        if (!$this->databaseManager instanceof \KalimeroMK\EmailCheck\Data\ExistingDatabaseManager) {
             throw new \Exception("DatabaseManager is not initialized");
         }
+
         $result = $this->databaseManager->executeCustomQuery($countQuery);
 
         if (!$result['success']) {
@@ -167,6 +174,7 @@ class DataManager
         if ($content === false) {
             throw new \Exception('Could not read JSON file: ' . $jsonFile);
         }
+
         $emails = json_decode($content, true);
         if ($emails === null) {
             throw new \Exception('Invalid JSON in file: ' . $jsonFile);
@@ -203,7 +211,8 @@ class DataManager
         if ($this->useDatabase) {
             return 'check_emails table';
         }
-        return basename((string) ConfigManager::getJsonFilePath());
+
+        return basename(ConfigManager::getJsonFilePath());
     }
 
     /**
