@@ -128,7 +128,7 @@ class MassEmailValidator
                 // Fallback to sequential processing if fork fails
                 $batchResults = $this->processBatch($batchEmails, $batchNumber);
                 $this->updateStatistics($batchResults);
-                $this->saveProgress($batchNumber, $totalBatches);
+                $this->saveProgress($batchNumber, (int) $totalBatches);
                 
                 echo "   ✅ Batch completed: " . count($batchEmails) . " processed\n";
                 echo "   📊 Progress: " . $this->getProgressPercentage() . "%\n";
@@ -472,7 +472,8 @@ class MassEmailValidator
         if (function_exists('shell_exec')) {
             $result = shell_exec('sysctl -n hw.ncpu 2>/dev/null');
             if ($result !== null && $result !== '') {
-                $cores = (int) trim($result);
+                $trimmed = trim($result);
+                $cores = (int) $trimmed;
                 if ($cores > 0) {
                     return $cores;
                 }
@@ -483,7 +484,8 @@ class MassEmailValidator
         if (function_exists('shell_exec')) {
             $result = shell_exec('nproc 2>/dev/null');
             if ($result !== null && $result !== '') {
-                $cores = (int) trim($result);
+                $trimmed = trim($result);
+                $cores = (int) $trimmed;
                 if ($cores > 0) {
                     return $cores;
                 }
@@ -537,24 +539,6 @@ class MassEmailValidator
         $this->validEmailsFile = $this->outputDir . '/valid_emails.json';
         $this->invalidEmailsFile = $this->outputDir . '/invalid_emails.json';
         $this->statsFile = $this->outputDir . '/statistics.json';
-    }
-    
-    /**
-     * Memory management
-     */
-    private function manageMemory(): void
-    {
-        $memoryUsage = memory_get_usage(true);
-        $memoryLimit = ini_get('memory_limit');
-        
-        // If memory usage is high, trigger garbage collection
-        if ($memoryUsage > ($this->memoryLimit * 0.8)) {
-            gc_collect_cycles();
-        }
-        
-        // Set memory limit for the process (convert to MB format)
-        $memoryLimitMB = round($this->memoryLimit / (1024 * 1024));
-        ini_set('memory_limit', $memoryLimitMB . 'M');
     }
     
     /**
