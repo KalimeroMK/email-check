@@ -7,7 +7,7 @@ use Throwable;
 
 /**
  * Disposable Email Domains Updater
- * 
+ *
  * Automatically fetches and merges disposable email domains from multiple sources:
  * 1. andreis/disposable-email-domains (daily/weekly updates)
  * 2. kickboxio/disposable-email-domains (moderate updates)
@@ -304,18 +304,18 @@ class DisposableEmailUpdater
 // CLI usage
 if (PHP_SAPI === 'cli') {
     $updater = new DisposableEmailUpdater();
-    
+
     echo "Disposable Email Domains Updater\n";
     echo "================================\n\n";
-    
+
     $currentCount = $updater->getCurrentCount();
     $lastUpdate = $updater->getLastUpdate();
-    
+
     echo "Current domains: " . $currentCount . "\n";
     echo "Last update: " . ($lastUpdate ?? 'Never') . "\n\n";
-    
+
     $result = $updater->update();
-    
+
     if ($result['success']) {
         echo "\n✅ Update successful!\n";
         echo "Total domains: " . $result['total_domains'] . "\n";

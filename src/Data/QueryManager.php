@@ -17,7 +17,7 @@ class QueryManager
     public function getQuery(): string
     {
         $queryType = ConfigManager::getEnv('QUERY_TYPE', 'valid_emails');
-        
+
         return match ($queryType) {
             'valid_emails' => $this->getValidEmailsQuery(),
             'all_emails' => $this->getAllEmailsQuery(),
@@ -32,8 +32,10 @@ class QueryManager
      */
     private function getValidEmailsQuery(): string
     {
-        $baseQuery = ConfigManager::getEnv('VALID_EMAILS_QUERY', 
-            "SELECT status, email FROM check_emails WHERE status = 'valid'");
+        $baseQuery = ConfigManager::getEnv(
+            'VALID_EMAILS_QUERY',
+            "SELECT status, email FROM check_emails WHERE status = 'valid'"
+        );
         return $this->addLimitAndOffset($baseQuery);
     }
 
@@ -42,8 +44,10 @@ class QueryManager
      */
     private function getAllEmailsQuery(): string
     {
-        $baseQuery = ConfigManager::getEnv('ALL_EMAILS_QUERY', 
-            "SELECT status, email FROM check_emails");
+        $baseQuery = ConfigManager::getEnv(
+            'ALL_EMAILS_QUERY',
+            "SELECT status, email FROM check_emails"
+        );
         return $this->addLimitAndOffset($baseQuery);
     }
 
@@ -52,8 +56,10 @@ class QueryManager
      */
     private function getInvalidEmailsQuery(): string
     {
-        $baseQuery = ConfigManager::getEnv('INVALID_EMAILS_QUERY', 
-            "SELECT status, email FROM check_emails WHERE status = 'invalid'");
+        $baseQuery = ConfigManager::getEnv(
+            'INVALID_EMAILS_QUERY',
+            "SELECT status, email FROM check_emails WHERE status = 'invalid'"
+        );
         return $this->addLimitAndOffset($baseQuery);
     }
 
@@ -62,8 +68,10 @@ class QueryManager
      */
     private function getCustomQuery(): string
     {
-        $baseQuery = ConfigManager::getEnv('CUSTOM_QUERY', 
-            "SELECT status, email FROM check_emails WHERE status = 'valid'");
+        $baseQuery = ConfigManager::getEnv(
+            'CUSTOM_QUERY',
+            "SELECT status, email FROM check_emails WHERE status = 'valid'"
+        );
         return $this->addLimitAndOffset($baseQuery);
     }
 
@@ -74,14 +82,14 @@ class QueryManager
     {
         $limit = (int)ConfigManager::getEnv('QUERY_LIMIT', '0');
         $offset = (int)ConfigManager::getEnv('QUERY_OFFSET', '0');
-        
+
         if ($limit > 0) {
             $query .= ' LIMIT ' . $limit;
             if ($offset > 0) {
                 $query .= ' OFFSET ' . $offset;
             }
         }
-        
+
         return $query;
     }
 
@@ -91,7 +99,7 @@ class QueryManager
     public function getCountQuery(): string
     {
         $queryType = ConfigManager::getEnv('QUERY_TYPE', 'valid_emails');
-        
+
         switch ($queryType) {
             case 'valid_emails':
             default:
@@ -102,8 +110,10 @@ class QueryManager
                 return "SELECT COUNT(*) as total FROM check_emails WHERE status = 'invalid'";
             case 'custom':
                 // For custom query, we'll make a COUNT version
-                $customQuery = ConfigManager::getEnv('CUSTOM_QUERY', 
-                    "SELECT status, email FROM check_emails WHERE status = 'valid'");
+                $customQuery = ConfigManager::getEnv(
+                    'CUSTOM_QUERY',
+                    "SELECT status, email FROM check_emails WHERE status = 'valid'"
+                );
                 return $this->convertToCountQuery($customQuery);
         }
     }
@@ -118,7 +128,7 @@ class QueryManager
             $fromPart = $matches[1];
             return 'SELECT COUNT(*) as total FROM ' . $fromPart;
         }
-        
+
         // Fallback if it can't be parsed
         return "SELECT COUNT(*) as total FROM check_emails WHERE status = 'valid'";
     }
@@ -131,16 +141,16 @@ class QueryManager
         $queryType = ConfigManager::getEnv('QUERY_TYPE', 'valid_emails');
         $limit = (int)ConfigManager::getEnv('QUERY_LIMIT', '0');
         $offset = (int)ConfigManager::getEnv('QUERY_OFFSET', '0');
-        
+
         $descriptions = [
             'valid_emails' => 'Valid emails only',
             'all_emails' => 'All emails',
             'invalid_emails' => 'Invalid emails only',
             'custom' => 'Custom query'
         ];
-        
+
         $description = $descriptions[$queryType] ?? 'Unknown query type';
-        
+
         if ($limit > 0) {
             $description .= ' (limit: ' . $limit;
             if ($offset > 0) {
@@ -149,7 +159,7 @@ class QueryManager
 
             $description .= ")";
         }
-        
+
         return $description;
     }
 

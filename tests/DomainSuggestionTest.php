@@ -18,7 +18,7 @@ class DomainSuggestionTest extends TestCase
     {
         $domain = 'gmail.com';
         $result = $this->suggestion->suggestDomainCorrection('test@' . $domain);
-        
+
         $this->assertNull($result); // Valid domain should not have suggestions
     }
 
@@ -26,7 +26,7 @@ class DomainSuggestionTest extends TestCase
     {
         $domain = 'gmal.com';
         $result = $this->suggestion->suggestDomainCorrection('test@' . $domain);
-        
+
         $this->assertIsString($result);
         $this->assertEquals('test@gmail.com', $result);
     }
@@ -51,7 +51,7 @@ class DomainSuggestionTest extends TestCase
     {
         $domain = 'unknown-domain-12345.com';
         $result = $this->suggestion->suggestDomainCorrection('test@' . $domain);
-        
+
         $this->assertNull($result);
     }
 
@@ -59,7 +59,7 @@ class DomainSuggestionTest extends TestCase
     {
         $domain = '';
         $result = $this->suggestion->suggestDomainCorrection('test@' . $domain);
-        
+
         $this->assertNull($result);
     }
 
@@ -67,7 +67,7 @@ class DomainSuggestionTest extends TestCase
     {
         $domain = 'mail.gmal.com';
         $result = $this->suggestion->suggestDomainCorrection('test@' . $domain);
-        
+
         // DomainSuggestion doesn't support subdomain corrections
         $this->assertNull($result);
     }
@@ -76,7 +76,7 @@ class DomainSuggestionTest extends TestCase
     {
         $domain = 'invalid-domain-format';
         $result = $this->suggestion->suggestDomainCorrection('test@' . $domain);
-        
+
         $this->assertNull($result);
     }
 
@@ -84,7 +84,7 @@ class DomainSuggestionTest extends TestCase
     {
         $domain = 'GMAL.COM';
         $result = $this->suggestion->suggestDomainCorrection('test@' . $domain);
-        
+
         // DomainSuggestion is case sensitive, so uppercase domains don't match
         $this->assertNull($result);
     }
@@ -93,7 +93,7 @@ class DomainSuggestionTest extends TestCase
     {
         $domain = 'test123.com';
         $result = $this->suggestion->suggestDomainCorrection('test@' . $domain);
-        
+
         $this->assertNull($result); // No suggestions for domains with numbers
     }
 
@@ -101,7 +101,7 @@ class DomainSuggestionTest extends TestCase
     {
         $domain = 'test-domain.com';
         $result = $this->suggestion->suggestDomainCorrection('test@' . $domain);
-        
+
         $this->assertNull($result); // No suggestions for domains with hyphens
     }
 }

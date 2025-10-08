@@ -10,7 +10,7 @@ class HelpersTest extends TestCase
     {
         $email = 'test@gmail.com';
         $suggestion = suggestDomainCorrection($email);
-        
+
         $this->assertNull($suggestion); // Valid email should not have suggestions
     }
 
@@ -18,7 +18,7 @@ class HelpersTest extends TestCase
     {
         $email = 'test@gmal.com';
         $suggestion = suggestDomainCorrection($email);
-        
+
         $this->assertIsString($suggestion);
         $this->assertEquals('test@gmail.com', $suggestion);
     }
@@ -27,7 +27,7 @@ class HelpersTest extends TestCase
     {
         $email = 'invalid-email';
         $suggestion = suggestDomainCorrection($email);
-        
+
         $this->assertNull($suggestion);
     }
 
@@ -35,7 +35,7 @@ class HelpersTest extends TestCase
     {
         $email = '';
         $suggestion = suggestDomainCorrection($email);
-        
+
         $this->assertNull($suggestion);
     }
 
@@ -58,7 +58,7 @@ class HelpersTest extends TestCase
     {
         $email = 'test@unknown-domain-12345.com';
         $suggestion = suggestDomainCorrection($email);
-        
+
         $this->assertNull($suggestion);
     }
 
@@ -66,7 +66,7 @@ class HelpersTest extends TestCase
     {
         $email = 'test@mail.gmal.com';
         $suggestion = suggestDomainCorrection($email);
-        
+
         // DomainSuggestion doesn't support subdomain corrections
         $this->assertNull($suggestion);
     }

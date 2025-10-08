@@ -41,11 +41,11 @@ class CachedDnsValidator implements DnsCheckerInterface
         ?string $cacheDriver = null
     ) {
         $this->dnsValidator = $dnsValidator ?? new DNSValidator($config);
-        
+
         // Load configuration from environment or parameters
         $this->cacheTtl = $cacheTtl ?? $this->loadCacheTtlFromEnv();
         $this->cacheDriver = $cacheDriver ?? $this->loadCacheDriverFromEnv();
-        
+
         // Initialize cache based on driver
         $this->cache = $cache ?? $this->createCacheInstance($config);
     }
@@ -244,11 +244,11 @@ class CachedDnsValidator implements DnsCheckerInterface
         $stats['cache_type'] = 'persistent';
         $stats['cache_driver'] = $this->cacheDriver;
         $stats['cache_ttl'] = $this->cacheTtl;
-        
+
         // Add telemetry data
         $stats['telemetry'] = $this->telemetry;
         $stats['hit_rate'] = $this->calculateHitRate();
-        
+
         return $stats;
     }
 
@@ -293,13 +293,13 @@ class CachedDnsValidator implements DnsCheckerInterface
     {
         $driver = $_ENV['EMAIL_DNS_CACHE_DRIVER'] ?? $_SERVER['EMAIL_DNS_CACHE_DRIVER'] ?? 'file';
         $driver = strtolower(trim((string) $driver));
-        
+
         // Validate driver and fallback to array if invalid
         $validDrivers = ['file', 'redis', 'array', 'null'];
         if (!in_array($driver, $validDrivers, true)) {
             return 'array'; // Safe fallback
         }
-        
+
         return $driver;
     }
 
@@ -341,7 +341,7 @@ class CachedDnsValidator implements DnsCheckerInterface
 
         $redis = RedisAdapter::createConnection($dsn);
         $adapter = new RedisAdapter($redis, 'dns_cache', $this->cacheTtl);
-        
+
         return new Psr16Cache($adapter);
     }
 
@@ -354,7 +354,7 @@ class CachedDnsValidator implements DnsCheckerInterface
         if ($total === 0) {
             return 0.0;
         }
-        
+
         return round(($this->telemetry['hits'] / $total) * 100, 2);
     }
 

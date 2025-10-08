@@ -19,8 +19,8 @@ class ExistingDatabaseManager
      */
     private function initializeDatabase(): void
     {
-        $this->capsule = new Capsule;
-        
+        $this->capsule = new Capsule();
+
         $this->capsule->addConnection([
             'driver' => $this->config['database']['driver'],
             'host' => $this->config['database']['host'],
@@ -149,8 +149,8 @@ class ExistingDatabaseManager
     /**
      * Ги влекува emails со филтри
      */
-    /** 
-     * @param array<string, mixed> $filters 
+    /**
+     * @param array<string, mixed> $filters
      * @return array<string, mixed>
      */
     public function getEmailsWithFilters(array $filters = []): array
@@ -197,15 +197,15 @@ class ExistingDatabaseManager
     /**
      * Ажурира статус на email
      */
-    /** 
-     * @param array<string, mixed> $additionalData 
+    /**
+     * @param array<string, mixed> $additionalData
      * @return array<string, mixed>
      */
     public function updateEmailStatus(string $email, string $status, array $additionalData = []): array
     {
         try {
             $updateData = array_merge(['status' => $status], $additionalData);
-            
+
             $result = $this->capsule->table('check_emails')
                 ->where('email', $email)
                 ->update($updateData);
@@ -226,8 +226,8 @@ class ExistingDatabaseManager
     /**
      * Додава нов email во табелата
      */
-    /** 
-     * @param array<string, mixed> $additionalData 
+    /**
+     * @param array<string, mixed> $additionalData
      * @return array<string, mixed>
      */
     public function addEmail(string $email, string $status = 'pending', array $additionalData = []): array
@@ -270,7 +270,8 @@ class ExistingDatabaseManager
         if ($format === 'csv') {
             $csv = "Email,Status,Created At,Updated At\n";
             foreach ($result['emails'] as $email) {
-                $csv .= sprintf("%s,%s,%s,%s\n", 
+                $csv .= sprintf(
+                    "%s,%s,%s,%s\n",
                     $email->email ?? '',
                     $email->status ?? '',
                     $email->created_at ?? '',
@@ -281,10 +282,10 @@ class ExistingDatabaseManager
             return ['success' => true, 'data' => $csv, 'format' => 'csv'];
         }
 
-        $validEmails = array_map(fn($email) => $email->email, $result['emails']->toArray());
+        $validEmails = array_map(fn ($email) => $email->email, $result['emails']->toArray());
 
         return [
-            'success' => true, 
+            'success' => true,
             'data' => json_encode($validEmails, JSON_PRETTY_PRINT),
             'format' => 'json',
             'count' => count($validEmails)
@@ -327,7 +328,7 @@ class ExistingDatabaseManager
     {
         try {
             $columns = $this->capsule->getConnection()->select("DESCRIBE check_emails");
-            
+
             return [
                 'success' => true,
                 'columns' => $columns
@@ -362,7 +363,7 @@ class ExistingDatabaseManager
             }
 
             $results = $this->capsule->getConnection()->select($sql);
-            
+
             return [
                 'success' => true,
                 'results' => $results,
@@ -386,7 +387,7 @@ class ExistingDatabaseManager
     {
         try {
             $results = $this->capsule->getConnection()->select("SELECT status, email FROM check_emails WHERE status = 'valid' LIMIT " . $limit);
-            
+
             return [
                 'success' => true,
                 'results' => $results,

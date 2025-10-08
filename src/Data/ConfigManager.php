@@ -81,8 +81,8 @@ class ConfigManager
     /**
      * Updates configuration with .env values
      */
-    /** 
-     * @param array<string, mixed> $baseConfig 
+    /**
+     * @param array<string, mixed> $baseConfig
      * @return array<string, mixed>
      */
     private static function mergeWithEnv(array $baseConfig): array

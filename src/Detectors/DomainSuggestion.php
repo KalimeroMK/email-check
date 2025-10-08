@@ -151,23 +151,23 @@ class DomainSuggestion
         if (!$atPos) {
             return null;
         }
-        
+
         $domain = substr($atPos, 1);
         $atPosition = strpos($email, "@");
         $localPart = $atPosition !== false ? substr($email, 0, $atPosition) : '';
-        
+
         // First, check for exact typo matches
         if (isset($this->commonTypos[$domain])) {
             return $localPart . '@' . $this->commonTypos[$domain];
         }
-        
+
         // If no exact match, try to find similar domains using Levenshtein distance
         $suggestion = $this->findSimilarDomain($domain);
-        
+
         if ($suggestion && $suggestion !== $domain) {
             return $localPart . '@' . $suggestion;
         }
-        
+
         return null;
     }
 
@@ -179,16 +179,16 @@ class DomainSuggestion
         $bestMatch = null;
         $bestDistance = PHP_INT_MAX;
         $maxDistance = 3; // Maximum allowed distance for suggestions
-        
+
         foreach ($this->commonDomains as $commonDomain) {
             $distance = levenshtein($domain, $commonDomain);
-            
+
             if ($distance <= $maxDistance && $distance < $bestDistance) {
                 $bestMatch = $commonDomain;
                 $bestDistance = $distance;
             }
         }
-        
+
         return $bestMatch;
     }
 

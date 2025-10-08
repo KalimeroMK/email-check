@@ -25,15 +25,15 @@ class SMTPValidatorStatusCodesTest extends TestCase
     public function testSmtpValidatorReturnsStatusCodes(): void
     {
         $result = $this->validator->validate('test@gmail.com');
-        
+
         $this->assertIsArray($result);
         $this->assertArrayHasKey('smtp_status_code', $result);
         $this->assertIsString($result['smtp_status_code']);
-        
+
         // Should be one of the valid status codes
         $validStatusCodes = [
             'success',
-            'mailbox_not_found', 
+            'mailbox_not_found',
             'catch_all',
             'server_error',
             'connection_failure',
@@ -42,14 +42,14 @@ class SMTPValidatorStatusCodesTest extends TestCase
             'disabled',
             'unknown'
         ];
-        
+
         $this->assertContains($result['smtp_status_code'], $validStatusCodes);
     }
 
     public function testSmtpValidatorHandlesInvalidEmailFormat(): void
     {
         $result = $this->validator->validate('invalid-email');
-        
+
         $this->assertEquals('invalid_format', $result['smtp_status_code']);
         $this->assertFalse($result['smtp_valid']);
         $this->assertContains('Invalid email format', $result['errors']);
@@ -58,7 +58,7 @@ class SMTPValidatorStatusCodesTest extends TestCase
     public function testSmtpValidatorHandlesNoMxRecords(): void
     {
         $result = $this->validator->validate('test@nonexistentdomain12345.com');
-        
+
         $this->assertEquals('no_mx_records', $result['smtp_status_code']);
         $this->assertFalse($result['smtp_valid']);
         $this->assertContains('No MX records found for domain', $result['errors']);
@@ -96,38 +96,38 @@ class SMTPValidatorStatusCodesTest extends TestCase
     {
         // Test with a real domain that should have MX records
         $result = $this->validator->validate('test@gmail.com');
-        
+
         $this->assertIsArray($result);
         $this->assertArrayHasKey('smtp_status_code', $result);
-        
+
         // Should not be invalid_format or no_mx_records for gmail.com
         $this->assertNotEquals('invalid_format', $result['smtp_status_code']);
         $this->assertNotEquals('no_mx_records', $result['smtp_status_code']);
-        
+
         // Should be one of the SMTP-related status codes
         $smtpStatusCodes = [
             'success',
             'mailbox_not_found',
-            'catch_all', 
+            'catch_all',
             'server_error',
             'connection_failure',
             'unknown'
         ];
-        
+
         $this->assertContains($result['smtp_status_code'], $smtpStatusCodes);
     }
 
     public function testSmtpValidatorReturnsDetailedResponse(): void
     {
         $result = $this->validator->validate('test@gmail.com');
-        
+
         $this->assertIsArray($result);
         $this->assertArrayHasKey('smtp_response', $result);
         $this->assertArrayHasKey('smtp_status_code', $result);
         $this->assertArrayHasKey('smtp_valid', $result);
-        
+
         // If SMTP validation was attempted, we should have a response
-        if ($result['smtp_status_code'] !== 'invalid_format' && 
+        if ($result['smtp_status_code'] !== 'invalid_format' &&
             $result['smtp_status_code'] !== 'no_mx_records') {
             // For connection failures, response might be null, but status code should be set
             $this->assertNotNull($result['smtp_status_code']);
@@ -138,22 +138,22 @@ class SMTPValidatorStatusCodesTest extends TestCase
     {
         // Test with a domain that might cause connection issues
         $result = $this->validator->validate('test@localhost');
-        
+
         $this->assertIsArray($result);
         $this->assertArrayHasKey('smtp_status_code', $result);
-        
+
         // Should handle connection failures gracefully
         $validStatusCodes = [
             'success',
             'mailbox_not_found',
             'catch_all',
-            'server_error', 
+            'server_error',
             'connection_failure',
             'invalid_format',
             'no_mx_records',
             'unknown'
         ];
-        
+
         $this->assertContains($result['smtp_status_code'], $validStatusCodes);
     }
 
@@ -164,17 +164,17 @@ class SMTPValidatorStatusCodesTest extends TestCase
         for ($i = 0; $i < 3; $i++) {
             $results[] = $this->validator->validate('test@gmail.com');
         }
-        
+
         // All results should have the same status code structure
         foreach ($results as $result) {
             $this->assertArrayHasKey('smtp_status_code', $result);
             $this->assertIsString($result['smtp_status_code']);
         }
-        
+
         // Status codes should be consistent (though they might vary due to network conditions)
         $statusCodes = array_column($results, 'smtp_status_code');
         $uniqueStatusCodes = array_unique($statusCodes);
-        
+
         // Should have at least one valid status code
         $this->assertGreaterThan(0, count($uniqueStatusCodes));
     }

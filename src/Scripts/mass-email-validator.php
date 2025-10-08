@@ -8,10 +8,10 @@ use Throwable;
 
 /**
  * Mass Email Validation Dispatcher
- * 
+ *
  * This script provides parallel processing capabilities for validating millions of emails
  * using multiple CPU cores and optimized memory management.
- * 
+ *
  * Features:
  * - Multi-process parallel validation
  * - Memory-efficient streaming processing
@@ -609,8 +609,7 @@ class MassEmailValidator
 
         if ($minutes > 0) {
             return sprintf('%02d:%02d', $minutes, $seconds);
-        }
-        else {
+        } else {
             return sprintf('%02d seconds', $seconds);
         }
     }
@@ -652,7 +651,7 @@ class MassEmailValidator
 if (PHP_SAPI === 'cli') {
     echo "Mass Email Validation Dispatcher\n";
     echo "=================================\n\n";
-    
+
     // Check command line arguments
     if ($argc < 2) {
         echo "Usage: php mass-email-validator.php <input_file> [options]\n";
@@ -667,9 +666,9 @@ if (PHP_SAPI === 'cli') {
         echo "  php mass-email-validator.php emails.json --batch-size=2000 --max-processes=8\n";
         exit(1);
     }
-    
+
     $inputFile = $argv[1];
-    
+
     // Parse command line options
     $options = [];
     for ($i = 2; $i < $argc; $i++) {
@@ -678,7 +677,7 @@ if (PHP_SAPI === 'cli') {
             $parts = explode('=', $arg, 2);
             $key = substr($parts[0], 2);
             $value = $parts[1] ?? true;
-            
+
             switch ($key) {
                 case 'batch-size':
                     $options['batch_size'] = (int) $value;
@@ -701,54 +700,54 @@ if (PHP_SAPI === 'cli') {
             }
         }
     }
-    
+
     // Load emails from input file
     if (!file_exists($inputFile)) {
         echo "❌ Error: Input file '{$inputFile}' not found.\n";
         exit(1);
     }
-    
+
     echo "📧 Loading emails from {$inputFile}...\n";
     $content = file_get_contents($inputFile);
     if ($content === false) {
         echo "❌ Error: Could not read input file.\n";
         exit(1);
     }
-    
+
     $emailsData = json_decode($content, true);
     if ($emailsData === null) {
         echo "❌ Error: Invalid JSON file.\n";
         exit(1);
     }
-    
+
     // Extract emails from the data
     $emails = [];
     if (isset($emailsData['emails']) && is_array($emailsData['emails'])) {
         $emails = $emailsData['emails'];
     } elseif (is_array($emailsData)) {
-        $emails = array_map(fn($item) => is_array($item) && isset($item['email']) ? $item['email'] : $item, $emailsData);
+        $emails = array_map(fn ($item) => is_array($item) && isset($item['email']) ? $item['email'] : $item, $emailsData);
     } else {
         echo "❌ Error: Invalid email data format.\n";
         exit(1);
     }
-    
+
     if ($emails === []) {
         echo "❌ Error: No emails found in input file.\n";
         exit(1);
     }
-    
+
     echo "📧 Loaded " . number_format(count($emails)) . " emails from {$inputFile}\n\n";
-    
+
     // Initialize validator
     $validator = new MassEmailValidator($options);
-    
+
     // Show CPU detection info
     echo "🖥️  Detected CPU cores: " . $validator->getDetectedCPUCores() . "\n";
     echo "⚙️  Using processes: " . $validator->getMaxProcesses() . "\n\n";
-    
+
     // Start validation
     $result = $validator->validateMassEmails($emails);
-    
+
     if ($result['success']) {
         echo "\n🎉 === VALIDATION COMPLETED ===\n";
         echo "📊 Total emails: " . number_format($result['total_emails']) . "\n";
@@ -774,11 +773,10 @@ function parseMemoryLimit(string $limit): int
     if (str_ends_with($limit, 'MB')) {
         return (int) substr($limit, 0, -2) * 1024 * 1024;
     }
-    
+
     if (str_ends_with($limit, 'KB')) {
         return (int) substr($limit, 0, -2) * 1024;
-    }
-    else {
+    } else {
         return (int) $limit;
     }
 }
@@ -794,11 +792,10 @@ function formatTime(int $seconds): string
     if ($hours > 0) {
         return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
     }
-    
+
     if ($minutes > 0) {
         return sprintf('%02d:%02d', $minutes, $seconds);
-    }
-    else {
+    } else {
         return sprintf('%02d seconds', $seconds);
     }
 }

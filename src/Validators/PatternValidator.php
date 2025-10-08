@@ -8,52 +8,52 @@ class PatternValidator
     private array $invalidPatterns = [
         // No @ symbol
         '/^[^@]*$/',
-        
+
         // Multiple @ symbols
         '/@.*@/',
-        
+
         // Multiple consecutive dots
         '/\.{2,}/',
-        
+
         // Starts or ends with dot
         '/^\.|\.@|@\.|\.$/',
 
         // Starts or ends with @
         '/^@|@$/',
-        
+
         // Empty local part
         '/^@/',
-        
+
         // Empty domain part
         '/@$/',
-        
+
         // Spaces in email
         '/\s/',
-        
+
         // Invalid characters
         '/[<>"\[\]\\\\]/',
-        
+
         // Too many dots in domain
         '/\.{3,}/',
-        
+
         // Domain with only numbers
         '/@\d+$/',
-        
+
         // Local part with only dots
         '/^\.+$/',
-        
+
         // Domain with only dots
         '/@\.+$/',
-        
+
         // Invalid TLD patterns
         '/@.*\.\d+$/',  // TLD with numbers
-        
+
         // Too long local part (over 64 chars)
         '/^.{65,}@/',
-        
+
         // Too long domain part (over 253 chars)
         '/@.{254,}$/',
-        
+
         // Too long overall (over 254 chars)
         '/^.{255,}$/',
     ];
@@ -77,28 +77,28 @@ class PatternValidator
         $this->strictPatterns = [
             // Invalid characters in local part
             '/^[^a-zA-Z0-9._+-]+@/',
-            
+
             // Invalid characters in domain
             '/@[^a-zA-Z0-9.-]+/',
-            
+
             // Domain without TLD
             '/@[^.]*$/',
-            
+
             // TLD too short
             '/@.*\.\w{1}$/',
-            
+
             // TLD too long
             '/@.*\.\w{64,}$/',
-            
+
             // Invalid TLD characters
             '/@.*\.[^a-zA-Z]+$/',
-            
+
             // Consecutive special characters
             '/[._+-]{2,}/',
-            
+
             // Starts with special character
             '/^[._+-]/',
-            
+
             // Ends with special character
             '/[._+-]$/',
         ];
@@ -106,7 +106,7 @@ class PatternValidator
 
     /**
      * Validates email against known invalid patterns
-     * 
+     *
      * @param string $email Email to validate
      * @return array<string, mixed> Validation result
      */
@@ -154,7 +154,7 @@ class PatternValidator
 
     /**
      * Gets human-readable description for pattern
-     * 
+     *
      * @param string $pattern Regex pattern
      * @return string Description
      */
@@ -194,7 +194,7 @@ class PatternValidator
 
     /**
      * Validates multiple emails against patterns
-     * 
+     *
      * @param array<string> $emails Emails to validate
      * @return array<string, mixed> Validation results
      */
@@ -233,7 +233,7 @@ class PatternValidator
 
     /**
      * Gets configuration
-     * 
+     *
      * @return array<string, mixed>
      */
     public function getConfig(): array

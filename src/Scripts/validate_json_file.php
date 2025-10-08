@@ -71,13 +71,13 @@ for ($batch = 0; $batch < $maxBatches; $batch++) {
     }
 
     // Extract email addresses from objects
-    $batchEmails = array_map(fn($item) => is_array($item) && isset($item['email']) ? $item['email'] : $item, $batchData);
+    $batchEmails = array_map(fn ($item) => is_array($item) && isset($item['email']) ? $item['email'] : $item, $batchData);
 
     echo "   📧 Processing {$count} emails...\n";
 
     // Validate emails
     $validationResults = $emailValidator->validateBatch($batchEmails);
-    
+
     foreach ($validationResults as $result) {
         if ($result['is_valid']) {
             $validEmails[] = $result['email'];
@@ -90,16 +90,16 @@ for ($batch = 0; $batch < $maxBatches; $batch++) {
     if ($totalProcessed > $totalEmails) {
         $totalProcessed = $totalEmails;
     }
-    
+
     $validCount = count($validEmails);
     $invalidCount = count($invalidEmails);
-    
+
     $batchTime = time() - $batchStartTime;
     $elapsedTime = time() - $startTime;
     $remainingBatches = $maxBatches - ($batch + 1);
     $avgTimePerBatch = $elapsedTime / ($batch + 1);
     $estimatedRemaining = round(($remainingBatches * $avgTimePerBatch) / 60, 1);
-    
+
     echo "   ✅ Batch completed: {$count} processed, {$validCount} valid, {$invalidCount} invalid ({$batchTime}s)\n";
     echo "   📊 Total so far: {$totalProcessed} processed, {$validCount} valid, {$invalidCount} invalid\n";
     echo "   ⏱️  Estimated remaining time: {$estimatedRemaining} minutes\n\n";

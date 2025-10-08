@@ -29,9 +29,9 @@ class SMTPValidatorTest extends TestCase
     {
         // Mock the SMTP validation to avoid real network calls
         $validator = $this->createMockSMTPValidator();
-        
+
         $result = $validator->validate('test@gmail.com');
-        
+
         $this->assertIsArray($result);
         $this->assertArrayHasKey('email', $result);
         $this->assertArrayHasKey('is_valid', $result);
@@ -40,7 +40,7 @@ class SMTPValidatorTest extends TestCase
         $this->assertArrayHasKey('warnings', $result);
         $this->assertArrayHasKey('smtp_response', $result);
         $this->assertArrayHasKey('timestamp', $result);
-        
+
         $this->assertEquals('test@gmail.com', $result['email']);
         $this->assertIsBool($result['is_valid']);
         $this->assertIsBool($result['smtp_valid']);
@@ -51,7 +51,7 @@ class SMTPValidatorTest extends TestCase
     public function testValidateWithInvalidEmailFormat(): void
     {
         $result = $this->validator->validate('invalid-email');
-        
+
         $this->assertFalse($result['is_valid']);
         $this->assertFalse($result['smtp_valid']);
         $this->assertContains('Invalid email format', $result['errors']);
@@ -60,7 +60,7 @@ class SMTPValidatorTest extends TestCase
     public function testValidateWithEmptyEmail(): void
     {
         $result = $this->validator->validate('');
-        
+
         $this->assertFalse($result['is_valid']);
         $this->assertFalse($result['smtp_valid']);
         $this->assertContains('Invalid email format', $result['errors']);
@@ -69,7 +69,7 @@ class SMTPValidatorTest extends TestCase
     public function testValidateWithNonExistentDomain(): void
     {
         $result = $this->validator->validate('test@nonexistentdomain12345.com');
-        
+
         $this->assertFalse($result['is_valid']);
         $this->assertFalse($result['smtp_valid']);
         $this->assertContains('No MX records found for domain', $result['errors']);
@@ -82,11 +82,11 @@ class SMTPValidatorTest extends TestCase
             'invalid-email',
             'test@yahoo.com',
         ];
-        
+
         $results = $this->validator->validateBatch($emails);
-        
+
         $this->assertCount(3, $results);
-        
+
         foreach ($results as $index => $result) {
             $this->assertIsArray($result);
             $this->assertArrayHasKey('email', $result);
@@ -105,17 +105,17 @@ class SMTPValidatorTest extends TestCase
             'from_email' => 'test@example.com',
             'from_name' => 'Test Validator',
         ]);
-        
+
         $emails = [
             'test1@gmail.com',
             'test2@gmail.com',
             'test3@gmail.com', // This should hit rate limit
         ];
-        
+
         $results = $limitedValidator->validateBatch($emails);
-        
+
         $this->assertCount(3, $results);
-        
+
         // The third email should have rate limit error
         $this->assertContains('Rate limit exceeded', $results[2]['errors']);
     }
@@ -124,7 +124,7 @@ class SMTPValidatorTest extends TestCase
     {
         $timeout = $this->validator->getConfig('timeout');
         $this->assertEquals(5, $timeout);
-        
+
         $default = $this->validator->getConfig('nonexistent', 'default');
         $this->assertEquals('default', $default);
     }
@@ -133,7 +133,7 @@ class SMTPValidatorTest extends TestCase
     {
         $this->validator->setConfig('timeout', 15);
         $this->assertEquals(15, $this->validator->getConfig('timeout'));
-        
+
         $this->validator->setConfig('custom_option', 'custom_value');
         $this->assertEquals('custom_value', $this->validator->getConfig('custom_option'));
     }
@@ -141,7 +141,7 @@ class SMTPValidatorTest extends TestCase
     public function testConstructorWithEmptyConfig(): void
     {
         $validator = new SMTPValidator();
-        
+
         $this->assertInstanceOf(SMTPValidator::class, $validator);
         $this->assertEquals(10, $validator->getConfig('timeout')); // Default value
     }
@@ -152,7 +152,7 @@ class SMTPValidatorTest extends TestCase
             'timeout' => 20,
             'from_email' => 'custom@example.com',
         ]);
-        
+
         $this->assertEquals(20, $validator->getConfig('timeout'));
         $this->assertEquals('custom@example.com', $validator->getConfig('from_email'));
         $this->assertEquals(3, $validator->getConfig('max_connections')); // Default value
@@ -161,7 +161,7 @@ class SMTPValidatorTest extends TestCase
     public function testValidateWithSpecialCharacters(): void
     {
         $result = $this->validator->validate('test+tag@example.com');
-        
+
         $this->assertIsArray($result);
         $this->assertEquals('test+tag@example.com', $result['email']);
     }
@@ -169,7 +169,7 @@ class SMTPValidatorTest extends TestCase
     public function testValidateWithSubdomain(): void
     {
         $result = $this->validator->validate('user@mail.google.com');
-        
+
         $this->assertIsArray($result);
         $this->assertEquals('user@mail.google.com', $result['email']);
     }
@@ -178,7 +178,7 @@ class SMTPValidatorTest extends TestCase
     {
         $longEmail = 'verylongusername' . str_repeat('x', 200) . '@example.com';
         $result = $this->validator->validate($longEmail);
-        
+
         $this->assertIsArray($result);
         $this->assertEquals($longEmail, $result['email']);
     }
@@ -187,7 +187,7 @@ class SMTPValidatorTest extends TestCase
     {
         // This test checks if the validator handles unicode domains properly
         $result = $this->validator->validate('test@münchen.de');
-        
+
         $this->assertIsArray($result);
         $this->assertEquals('test@münchen.de', $result['email']);
     }
@@ -195,7 +195,7 @@ class SMTPValidatorTest extends TestCase
     public function testValidateWithNumbersInDomain(): void
     {
         $result = $this->validator->validate('test@example123.com');
-        
+
         $this->assertIsArray($result);
         $this->assertEquals('test@example123.com', $result['email']);
     }
@@ -203,7 +203,7 @@ class SMTPValidatorTest extends TestCase
     public function testValidateWithHyphensInDomain(): void
     {
         $result = $this->validator->validate('test@sub-domain.example.com');
-        
+
         $this->assertIsArray($result);
         $this->assertEquals('test@sub-domain.example.com', $result['email']);
     }

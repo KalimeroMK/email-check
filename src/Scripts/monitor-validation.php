@@ -4,17 +4,17 @@ namespace KalimeroMK\EmailCheck\Scripts;
 
 /**
  * Mass Validation Monitor
- * 
+ *
  * Monitors the progress of mass email validation processes
  */
 class MassValidationMonitor
 {
     private bool $isRunning = true;
-    
+
     public function __construct(private readonly string $progressFile)
     {
     }
-    
+
     /**
      * Start monitoring
      */
@@ -22,23 +22,23 @@ class MassValidationMonitor
     {
         echo "🔍 Starting mass validation monitor...\n";
         echo "📁 Monitoring: {$this->progressFile}\n\n";
-        
+
         // Handle Ctrl+C gracefully
         if (function_exists('pcntl_signal')) {
             pcntl_signal(SIGINT, $this->handleSignal(...));
             pcntl_signal(SIGTERM, $this->handleSignal(...));
         }
-        
+
         $lastUpdate = 0;
-        
+
         while ($this->isRunning) {
             if (file_exists($this->progressFile)) {
                 $progress = $this->loadProgress();
-                
+
                 if ($progress && $progress['timestamp'] !== $lastUpdate) {
                     $this->displayProgress($progress);
                     $lastUpdate = $progress['timestamp'];
-                    
+
                     // Check if completed
                     if ($progress['current_batch'] >= $progress['total_batches']) {
                         echo "\n🎉 Validation completed!\n";
@@ -48,16 +48,16 @@ class MassValidationMonitor
             } else {
                 echo "⏳ Waiting for progress file...\n";
             }
-            
+
             sleep(5); // Check every 5 seconds
-            
+
             // Handle signals
             if (function_exists('pcntl_signal_dispatch')) {
                 pcntl_signal_dispatch();
             }
         }
     }
-    
+
     /**
      * Load progress from file
      */
@@ -67,11 +67,11 @@ class MassValidationMonitor
         if ($content === false) {
             return null;
         }
-        
+
         $progress = json_decode($content, true);
         return $progress ?: null;
     }
-    
+
     /**
      * Display progress information
      */
@@ -79,33 +79,33 @@ class MassValidationMonitor
     {
         // Clear screen (works on most terminals)
         echo "\033[2J\033[H";
-        
+
         echo "📊 Mass Email Validation Progress\n";
         echo "=================================\n\n";
-        
+
         // Basic info
         echo "📧 Total emails: " . number_format($progress['total_emails']) . "\n";
         echo sprintf('📦 Current batch: %s/%s%s', $progress['current_batch'], $progress['total_batches'], PHP_EOL);
         echo "✅ Valid emails: " . number_format($progress['valid_emails']) . "\n";
         echo "❌ Invalid emails: " . number_format($progress['invalid_emails']) . "\n";
         echo "📈 Progress: {$progress['progress_percentage']}%\n\n";
-        
+
         // Progress bar
         $this->displayProgressBar($progress['progress_percentage']);
-        
+
         // Time info
         echo "\n⏱️  Elapsed time: " . $this->formatTime($progress['elapsed_time']) . "\n";
         echo sprintf('⏳ Estimated remaining: %s%s', $progress['estimated_remaining'], PHP_EOL);
-        
+
         // Statistics
         $emailsPerSecond = $progress['processed_emails'] / max($progress['elapsed_time'], 1);
         echo "🚀 Processing speed: " . round($emailsPerSecond, 2) . " emails/second\n";
         echo "📊 Validation rate: " . round(($progress['valid_emails'] / max($progress['processed_emails'], 1)) * 100, 2) . "%\n";
-        
+
         echo "\n🕐 Last update: {$progress['timestamp']}\n";
         echo "Press Ctrl+C to stop monitoring\n";
     }
-    
+
     /**
      * Display progress bar
      */
@@ -113,12 +113,12 @@ class MassValidationMonitor
     {
         $barLength = 50;
         $filledLength = (int) ($barLength * $percentage / 100);
-        
+
         $bar = str_repeat('█', $filledLength) . str_repeat('░', $barLength - $filledLength);
-        
+
         echo "Progress: [{$bar}] {$percentage}%\n";
     }
-    
+
     /**
      * Format time in seconds to human readable format
      */
@@ -130,15 +130,14 @@ class MassValidationMonitor
         if ($hours > 0) {
             return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
         }
-        
+
         if ($minutes > 0) {
             return sprintf('%02d:%02d', $minutes, $seconds);
-        }
-        else {
+        } else {
             return sprintf('%02d seconds', $seconds);
         }
     }
-    
+
     /**
      * Handle system signals
      */
@@ -147,7 +146,7 @@ class MassValidationMonitor
         echo "\n\n👋 Monitoring stopped by user.\n";
         $this->isRunning = false;
     }
-    
+
     /**
      * Get current progress summary
      */
@@ -157,7 +156,7 @@ class MassValidationMonitor
         if (!$progress) {
             return null;
         }
-        
+
         return [
             'total_emails' => $progress['total_emails'],
             'processed_emails' => $progress['processed_emails'],
@@ -176,7 +175,7 @@ class MassValidationMonitor
 if (PHP_SAPI === 'cli') {
     echo "Mass Validation Monitor\n";
     echo "======================\n\n";
-    
+
     // Check command line arguments
     if ($argc < 2) {
         echo "Usage: php monitor-validation.php <progress_file>\n";
@@ -185,15 +184,15 @@ if (PHP_SAPI === 'cli') {
         echo "\nThe progress file is created by the mass email validator.\n";
         exit(1);
     }
-    
+
     $progressFile = $argv[1];
-    
+
     if (!file_exists($progressFile)) {
         echo "❌ Error: Progress file '{$progressFile}' not found.\n";
         echo "Make sure the mass email validator is running.\n";
         exit(1);
     }
-    
+
     $monitor = new MassValidationMonitor($progressFile);
     $monitor->startMonitoring();
 }

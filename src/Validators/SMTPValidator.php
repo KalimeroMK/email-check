@@ -39,7 +39,7 @@ class SMTPValidator
 
     /**
      * Validates email using SMTP connection
-     * 
+     *
      * @param string $email Email address to validate
      * @return array<string, mixed> Validation result
      */
@@ -75,11 +75,11 @@ class SMTPValidator
 
             // Try SMTP validation
             $smtpResult = $this->performSmtpValidation($email, $mxRecords);
-            
+
             $result['smtp_valid'] = $smtpResult['valid'];
             $result['smtp_response'] = $smtpResult['response'];
             $result['smtp_status_code'] = $smtpResult['status_code'] ?? 'unknown';
-            
+
             if ($smtpResult['valid']) {
                 $result['is_valid'] = true;
             } else {
@@ -96,7 +96,7 @@ class SMTPValidator
 
     /**
      * Performs SMTP validation against MX servers
-     * 
+     *
      * @param string $email Email address to validate
      * @param array<string> $mxRecords MX records for the domain
      * @return array<string, mixed> SMTP validation result
@@ -113,18 +113,18 @@ class SMTPValidator
         foreach ($mxRecords as $mxRecord) {
             try {
                 $smtpResult = $this->connectToSmtpServer($mxRecord, $email);
-                
+
                 if ($smtpResult['valid']) {
                     $result['valid'] = true;
                     $result['response'] = $smtpResult['response'];
                     $result['status_code'] = $smtpResult['status_code'] ?? 'success';
                     break;
                 }
-                
+
                 $result['response'] = $smtpResult['response'];
                 $result['error'] = $smtpResult['error'];
                 $result['status_code'] = $smtpResult['status_code'] ?? 'server_error';
-                
+
             } catch (Exception $e) {
                 $result['error'] = 'Connection failed: ' . $e->getMessage();
                 $result['status_code'] = 'connection_failure';
@@ -137,7 +137,7 @@ class SMTPValidator
 
     /**
      * Connects to SMTP server and validates email
-     * 
+     *
      * @param string $mxRecord MX record hostname
      * @param string $email Email address to validate
      * @return array<string, mixed> Connection result
@@ -152,7 +152,7 @@ class SMTPValidator
         ];
 
         $socket = null;
-        
+
         try {
             // Create socket connection
             $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
@@ -193,10 +193,10 @@ class SMTPValidator
             // Send RCPT TO command
             $this->sendCommand($socket, 'RCPT TO: <' . $email . '>');
             $response = $this->readSocketResponse($socket);
-            
+
             $result['response'] = $response;
             $result['status_code'] = $this->analyzeSmtpResponse($response);
-            
+
             if ($this->isPositiveResponse($response)) {
                 $result['valid'] = true;
             } else {
@@ -221,25 +221,25 @@ class SMTPValidator
 
     /**
      * Analyzes SMTP response and returns appropriate status code
-     * 
+     *
      * @param string $response SMTP server response
      * @return string Status code
      */
     private function analyzeSmtpResponse(string $response): string
     {
         $response = trim($response);
-        
+
         // Extract status code (first 3 digits)
         if (preg_match('/^(\d{3})/', $response, $matches)) {
             $statusCode = (int)$matches[1];
-            
+
             switch ($statusCode) {
                 case 250:
                     return 'success';
-                    
+
                 case 550:
                     // Check for specific 550 error messages
-                    if (str_contains($response, 'NoSuchUser') || 
+                    if (str_contains($response, 'NoSuchUser') ||
                         str_contains($response, 'does not exist') ||
                         str_contains($response, 'User unknown') ||
                         str_contains($response, 'Invalid recipient')) {
@@ -247,22 +247,22 @@ class SMTPValidator
                     }
 
                     return 'server_error';
-                    
+
                 case 551:
                 case 552:
                 case 553:
                 case 554:
                     return 'server_error';
-                    
+
                 case 421:
                 case 450:
                 case 451:
                     return 'server_error';
-                    
+
                 case 452:
                 case 453:
                     return 'server_error';
-                    
+
                 default:
                     if ($statusCode >= 200 && $statusCode < 300) {
                         return 'success';
@@ -277,12 +277,12 @@ class SMTPValidator
                     break;
             }
         }
-        
+
         // Check for catch-all behavior (server accepts any email)
         if (str_contains($response, '250') || str_contains($response, 'OK')) {
             return 'catch_all';
         }
-        
+
         return 'unknown';
     }
 
@@ -300,7 +300,7 @@ class SMTPValidator
 
     /**
      * Reads response from SMTP server
-     * 
+     *
      * @param Socket $socket Socket connection
      * @return string Server response
      */
@@ -319,7 +319,7 @@ class SMTPValidator
 
     /**
      * Checks if SMTP response is positive
-     * 
+     *
      * @param string $response SMTP response
      * @return bool True if response is positive
      */
@@ -331,7 +331,7 @@ class SMTPValidator
 
     /**
      * Gets MX records for domain
-     * 
+     *
      * @param string $domain Domain name
      * @return array<string> MX records
      */
@@ -339,19 +339,19 @@ class SMTPValidator
     {
         $mxRecords = [];
         $mxWeights = [];
-        
+
         if (getmxrr($domain, $mxRecords, $mxWeights)) {
             // Sort by priority (weight)
             array_multisort($mxWeights, SORT_ASC, $mxRecords);
             return $mxRecords;
         }
-        
+
         return [];
     }
 
     /**
      * Extracts domain from email address
-     * 
+     *
      * @param string $email Email address
      * @return string Domain name
      */
@@ -363,7 +363,7 @@ class SMTPValidator
 
     /**
      * Validates multiple emails using SMTP
-     * 
+     *
      * @param array<string> $emails Array of email addresses
      * @return array<array<string, mixed>> Array of validation results
      */
@@ -407,7 +407,7 @@ class SMTPValidator
 
     /**
      * Gets configuration value
-     * 
+     *
      * @param string $key Configuration key
      * @param mixed $default Default value
      * @return mixed Configuration value

@@ -66,13 +66,13 @@ for ($batch = 0; $batch < $maxBatches; $batch++) {
     }
 
     // Extract email addresses
-    $emailAddresses = array_map(fn($row) => $row->email, $emails);
-    
+    $emailAddresses = array_map(fn ($row) => $row->email, $emails);
+
     echo "   📧 Processing {$count} emails...\n";
 
     // Process emails with proper validation (DNS + SMTP)
     $validationResults = $emailValidator->validateBatch($emailAddresses);
-    
+
     foreach ($validationResults as $result) {
         if ($result['is_valid']) {
             $validEmails[] = $result['email'];
@@ -84,19 +84,19 @@ for ($batch = 0; $batch < $maxBatches; $batch++) {
     $totalProcessed += $count;
     $validCount = count($validEmails);
     $invalidCount = count($invalidEmails);
-    
+
     $batchTime = time() - $batchStartTime;
     $elapsedTime = time() - $startTime;
     $remainingBatches = $maxBatches - ($batch + 1);
     $avgTimePerBatch = $elapsedTime / ($batch + 1);
     $estimatedRemaining = round(($remainingBatches * $avgTimePerBatch) / 60, 1);
-    
+
     echo "   ✅ Batch completed: {$count} processed, {$validCount} valid, {$invalidCount} invalid ({$batchTime}s)\n";
     echo "   📊 Total so far: {$totalProcessed} processed, {$validCount} valid, {$invalidCount} invalid\n";
     echo "   ⏱️  Estimated remaining time: {$estimatedRemaining} minutes\n\n";
 
     $offset += $batchSize;
-    
+
     // Save progress every 10 batches
     if (($batch + 1) % 10 == 0) {
         $progressFile = "server_analysis_progress.json";

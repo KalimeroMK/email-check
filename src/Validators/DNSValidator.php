@@ -75,7 +75,7 @@ class DNSValidator implements DnsCheckerInterface
         }
 
         $result['response_time'] = round((microtime(true) - $startTime) * 1000, 2);
-        
+
         return $result;
     }
 
@@ -95,7 +95,7 @@ class DNSValidator implements DnsCheckerInterface
         try {
             $mxRecords = [];
             $mxWeight = [];
-            
+
             if (getmxrr($domain, $mxRecords, $mxWeight)) {
                 $hasMx = true;
             }

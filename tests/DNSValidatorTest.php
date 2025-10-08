@@ -83,10 +83,10 @@ class DNSValidatorTest extends TestCase
     {
         // First call
         $result1 = $this->validator->checkMXRecords('google.com');
-        
+
         // Second call should use cache
         $result2 = $this->validator->checkMXRecords('google.com');
-        
+
         $this->assertEquals($result1, $result2);
     }
 
@@ -94,10 +94,10 @@ class DNSValidatorTest extends TestCase
     {
         // Make a request to populate cache
         $this->validator->checkMXRecords('google.com');
-        
+
         // Clear cache
         $this->validator->clearCache();
-        
+
         // This should pass without errors
         $this->assertTrue(true);
     }
@@ -105,7 +105,7 @@ class DNSValidatorTest extends TestCase
     public function testGetCacheStats(): void
     {
         $stats = $this->validator->getCacheStats();
-        
+
         $this->assertIsArray($stats);
         // Check for keys that actually exist in the implementation
         $this->assertArrayHasKey('cached_domains', $stats);
@@ -134,7 +134,7 @@ class DNSValidatorTest extends TestCase
     public function testValidateDomainWithEmptyString(): void
     {
         $result = $this->validator->validateDomain('');
-        
+
         $this->assertIsArray($result);
         $this->assertEquals('', $result['domain']);
         $this->assertFalse($result['has_mx']);
@@ -144,7 +144,7 @@ class DNSValidatorTest extends TestCase
     public function testValidateDomainWithSpecialCharacters(): void
     {
         $result = $this->validator->validateDomain('test@invalid.domain');
-        
+
         $this->assertIsArray($result);
         $this->assertFalse($result['has_mx']);
         $this->assertFalse($result['has_a']);

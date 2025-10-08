@@ -21,7 +21,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
     public function testValidateEmailWithUnicodeCharacters(): void
     {
         $email = 'tëst@example.com';
-        
+
         // Unicode characters are not supported by PHP's filter_var
         $result = $this->validator->validate($email);
 
@@ -165,7 +165,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
     public function testValidateEmailWithValidSubdomain(): void
     {
         $email = 'test@mail.example.com';
-        
+
         $this->mockDnsValidator->expects($this->once())
             ->method('validateDomain')
             ->with('mail.example.com')
@@ -198,7 +198,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
     public function testValidateEmailWithNumbersInLocalPart(): void
     {
         $email = 'test123@example.com';
-        
+
         $this->mockDnsValidator->expects($this->once())
             ->method('validateDomain')
             ->with('example.com')
@@ -219,7 +219,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
     public function testValidateEmailWithUnderscoreInLocalPart(): void
     {
         $email = 'test_user@example.com';
-        
+
         $this->mockDnsValidator->expects($this->once())
             ->method('validateDomain')
             ->with('example.com')
@@ -240,7 +240,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
     public function testValidateEmailWithHyphenInLocalPart(): void
     {
         $email = 'test-user@example.com';
-        
+
         $this->mockDnsValidator->expects($this->once())
             ->method('validateDomain')
             ->with('example.com')

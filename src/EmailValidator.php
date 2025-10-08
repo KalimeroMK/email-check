@@ -78,7 +78,7 @@ class EmailValidator
 
     /**
      * Loads configuration from .env file
-     * 
+     *
      * @return array<string, mixed>
      */
     private function loadEnvConfig(): array
@@ -225,13 +225,13 @@ class EmailValidator
             $result['pattern_valid'] = $patternResult['pattern_valid'];
             $result['pattern_status'] = $patternResult['pattern_status'];
             $result['matched_pattern'] = $patternResult['matched_pattern'];
-            
+
             if (!$patternResult['pattern_valid']) {
                 $result['errors'] = array_merge($result['errors'], $patternResult['errors']);
                 $result['smtp_status_code'] = 'invalid_format';
                 return $result;
             }
-            
+
             if (!empty($patternResult['warnings'])) {
                 $result['warnings'] = array_merge($result['warnings'], $patternResult['warnings']);
             }
@@ -538,7 +538,7 @@ class EmailValidator
      * @return list
      */
     /**
-     * @param array<int, string> $emails 
+     * @param array<int, string> $emails
      * @return array<int, array<string, mixed>>
      */
     public function validateBatch(array $emails): array
@@ -568,8 +568,8 @@ class EmailValidator
     /**
      * Statistics for results
      */
-    /** 
-     * @param array<int, array<string, mixed>> $results 
+    /**
+     * @param array<int, array<string, mixed>> $results
      * @return array<string, mixed>
      */
     public function getStats(array $results): array
@@ -651,7 +651,7 @@ class EmailValidator
 
     /**
      * Gets the configured data source
-     * 
+     *
      * @return string 'database' or 'json'
      */
     public function getDataSource(): string
@@ -685,7 +685,7 @@ class EmailValidator
 
     /**
      * Gets database configuration
-     * 
+     *
      * @return array<string, mixed>
      */
     public function getDatabaseConfig(): array
@@ -706,7 +706,7 @@ class EmailValidator
 
     /**
      * Gets all configuration
-     * 
+     *
      * @return array<string, mixed>
      */
     public function getAllConfig(): array
@@ -724,7 +724,7 @@ class EmailValidator
 
     /**
      * Validates multiple emails with pattern filtering
-     * 
+     *
      * @param array<string> $emails Emails to validate
      * @return array<string, mixed> Validation results
      */
@@ -758,4 +758,3 @@ class EmailValidator
         ];
     }
 }
-

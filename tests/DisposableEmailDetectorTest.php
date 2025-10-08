@@ -88,13 +88,13 @@ class DisposableEmailDetectorTest extends TestCase
     public function testAddDisposableDomain(): void
     {
         $customDomain = 'custom-disposable.com';
-        
+
         // Initially should not be detected as disposable
         $this->assertFalse($this->detector->isDisposableDomain($customDomain));
-        
+
         // Add the domain
         $this->detector->addDisposableDomain($customDomain);
-        
+
         // Now should be detected as disposable
         $this->assertTrue($this->detector->isDisposableDomain($customDomain));
         $this->assertTrue($this->detector->isDisposable("test@$customDomain"));
@@ -103,13 +103,13 @@ class DisposableEmailDetectorTest extends TestCase
     public function testRemoveDisposableDomain(): void
     {
         $domain = '10minutemail.com';
-        
+
         // Initially should be detected as disposable
         $this->assertTrue($this->detector->isDisposableDomain($domain));
-        
+
         // Remove the domain
         $this->detector->removeDisposableDomain($domain);
-        
+
         // Now should not be detected as disposable
         $this->assertFalse($this->detector->isDisposableDomain($domain));
         $this->assertFalse($this->detector->isDisposable("test@$domain"));
@@ -118,7 +118,7 @@ class DisposableEmailDetectorTest extends TestCase
     public function testGetDisposableDomains(): void
     {
         $domains = $this->detector->getDisposableDomains();
-        
+
         $this->assertIsArray($domains);
         $this->assertGreaterThan(0, count($domains));
         $this->assertContains('10minutemail.com', $domains);
@@ -129,7 +129,7 @@ class DisposableEmailDetectorTest extends TestCase
     public function testGetDisposableDomainCount(): void
     {
         $count = $this->detector->getDisposableDomainCount();
-        
+
         $this->assertIsInt($count);
         $this->assertGreaterThan(0, $count);
         $this->assertEquals(count($this->detector->getDisposableDomains()), $count);
@@ -166,11 +166,11 @@ class DisposableEmailDetectorTest extends TestCase
     {
         $domain = 'test-disposable.com';
         $initialCount = $this->detector->getDisposableDomainCount();
-        
+
         // Add domain twice
         $this->detector->addDisposableDomain($domain);
         $this->detector->addDisposableDomain($domain);
-        
+
         // Count should only increase by 1
         $this->assertEquals($initialCount + 1, $this->detector->getDisposableDomainCount());
     }

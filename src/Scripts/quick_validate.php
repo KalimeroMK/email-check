@@ -48,7 +48,7 @@ for ($batch = 0; $batch < $maxBatches; $batch++) {
     }
 
     // Extract email addresses
-    $emailList = array_map(fn($email) => $email->email, $emails);
+    $emailList = array_map(fn ($email) => $email->email, $emails);
 
     echo "   📧 Validating " . count($emailList) . " emails...\n";
 
@@ -84,7 +84,7 @@ echo sprintf('DNS Errors: %s%s', $finalStats['dns_errors'], PHP_EOL);
 echo sprintf('Format Errors: %s%s', $finalStats['format_errors'], PHP_EOL);
 
 // Save only invalid emails if there are any
-$invalidEmails = array_filter($allResults, fn(array $result): bool => !$result['is_valid']);
+$invalidEmails = array_filter($allResults, fn (array $result): bool => !$result['is_valid']);
 
 if ($invalidEmails !== []) {
     $invalidFile = 'invalid_emails_' . date('Y-m-d_H-i-s') . '.json';

@@ -216,7 +216,7 @@ class PatternValidatorTest extends TestCase
     public function testPatternValidatorConfiguration(): void
     {
         $config = $this->validator->getConfig();
-        
+
         $this->assertIsArray($config);
         $this->assertTrue($config['enable_pattern_filtering']);
         $this->assertFalse($config['pattern_strict_mode']);
@@ -227,7 +227,7 @@ class PatternValidatorTest extends TestCase
     public function testPatternValidatorCustomPattern(): void
     {
         $this->validator->addCustomPattern('/^test/', 'Starts with test');
-        
+
         $result = $this->validator->validate('test@example.com');
         $this->assertFalse($result['pattern_valid']);
         $this->assertEquals('rejected', $result['pattern_status']);
@@ -237,7 +237,7 @@ class PatternValidatorTest extends TestCase
     public function testPatternValidatorIsEnabled(): void
     {
         $this->assertTrue($this->validator->isEnabled());
-        
+
         $disabledValidator = new PatternValidator(['enable_pattern_filtering' => false]);
         $this->assertFalse($disabledValidator->isEnabled());
     }
@@ -245,7 +245,7 @@ class PatternValidatorTest extends TestCase
     public function testPatternValidatorIsStrictMode(): void
     {
         $this->assertFalse($this->validator->isStrictMode());
-        
+
         $strictValidator = new PatternValidator(['pattern_strict_mode' => true]);
         $this->assertTrue($strictValidator->isStrictMode());
     }
