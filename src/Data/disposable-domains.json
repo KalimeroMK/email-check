@@ -1,17 +1,17 @@
 {
     "metadata": {
-        "updated_at": "2025-10-08 15:43:06",
+        "updated_at": "2025-10-08 17:44:54",
         "total_domains": 72090,
         "sources": {
             "andreis": {
                 "url": "https://raw.githubusercontent.com/disposable/disposable-email-domains/master/domains.txt",
                 "count": 71642,
-                "fetched_at": "2025-10-08 15:43:06"
+                "fetched_at": "2025-10-08 17:44:54"
             },
             "alternative": {
                 "url": "https://raw.githubusercontent.com/FGRibreau/mailchecker/master/list.txt",
                 "count": 55861,
-                "fetched_at": "2025-10-08 15:43:06"
+                "fetched_at": "2025-10-08 17:44:54"
             }
         },
         "generated_by": "DisposableEmailUpdater",
