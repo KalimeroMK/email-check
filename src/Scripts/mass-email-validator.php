@@ -472,7 +472,7 @@ class MassEmailValidator
         if (function_exists('shell_exec')) {
             $result = shell_exec('sysctl -n hw.ncpu 2>/dev/null');
             if ($result !== null && $result !== '') {
-                $cores = (int) trim($result);
+                $cores = (int) trim((string) $result);
                 if ($cores > 0) {
                     return $cores;
                 }
@@ -483,7 +483,7 @@ class MassEmailValidator
         if (function_exists('shell_exec')) {
             $result = shell_exec('nproc 2>/dev/null');
             if ($result !== null && $result !== '') {
-                $cores = (int) trim($result);
+                $cores = (int) trim((string) $result);
                 if ($cores > 0) {
                     return $cores;
                 }
