@@ -93,39 +93,186 @@ class MassEmailValidator
     }
     
     /**
-     * Process emails in parallel batches
+     * Process emails in parallel batches using multiple processes
      */
     private function processParallelBatches(array $emails): void
     {
         $totalBatches = ceil($this->totalEmails / $this->batchSize);
-        $processedBatches = 0;
         
-        echo "📦 Processing " . number_format($totalBatches) . " batches in parallel...\n\n";
+        echo "📦 Processing " . number_format($totalBatches) . " batches with {$this->maxProcesses} parallel processes...\n\n";
+        
+        $batchNumber = 0;
+        $activeProcesses = [];
         
         for ($batchStart = 0; $batchStart < $this->totalEmails; $batchStart += $this->batchSize) {
             $batchEnd = min($batchStart + $this->batchSize, $this->totalEmails);
             $batchEmails = array_slice($emails, $batchStart, $batchEnd - $batchStart);
+            $batchNumber++;
             
-            $batchNumber = $processedBatches + 1;
-            echo "🔄 Processing batch {$batchNumber}/{$totalBatches} (" . count($batchEmails) . " emails)...\n";
+            // If we have reached max processes, wait for one to finish
+            while (count($activeProcesses) >= $this->maxProcesses) {
+                $this->waitForProcesses($activeProcesses);
+            }
             
-            // Process batch
-            $batchResults = $this->processBatch($batchEmails, $batchNumber);
+            echo "🔄 Starting batch {$batchNumber}/{$totalBatches} (" . count($batchEmails) . " emails)...\n";
             
-            // Update statistics
-            $this->updateStatistics($batchResults);
+            // Start new process
+            $pid = $this->startBatchProcess($batchEmails, $batchNumber);
+            if ($pid > 0) {
+                $activeProcesses[$pid] = [
+                    'batch_number' => $batchNumber,
+                    'emails_count' => count($batchEmails),
+                    'start_time' => time(),
+                ];
+            } else {
+                // Fallback to sequential processing if fork fails
+                $batchResults = $this->processBatch($batchEmails, $batchNumber);
+                $this->updateStatistics($batchResults);
+                $this->saveProgress($batchNumber, $totalBatches);
+                
+                echo "   ✅ Batch completed: " . count($batchEmails) . " processed\n";
+                echo "   📊 Progress: " . $this->getProgressPercentage() . "%\n";
+                echo "   ⏱️  ETA: " . $this->getEstimatedTimeRemaining() . "\n\n";
+            }
+        }
+        
+        // Wait for all remaining processes to finish
+        while (!empty($activeProcesses)) {
+            $this->waitForProcesses($activeProcesses);
+        }
+        
+        echo "🎉 All batches completed!\n\n";
+    }
+    
+    /**
+     * Start a batch process using fork
+     */
+    private function startBatchProcess(array $emails, int $batchNumber): int
+    {
+        if (!function_exists('pcntl_fork')) {
+            return 0; // Fork not available
+        }
+        
+        $pid = pcntl_fork();
+        
+        if ($pid == -1) {
+            return 0; // Fork failed
+        } elseif ($pid == 0) {
+            // Child process
+            $this->processBatchInChild($emails, $batchNumber);
+            exit(0);
+        } else {
+            // Parent process
+            return $pid;
+        }
+    }
+    
+    /**
+     * Process batch in child process
+     */
+    private function processBatchInChild(array $emails, int $batchNumber): void
+    {
+        // Create a separate validator instance for this process
+        $validatorConfig = [
+            'timeout' => 5,
+            'check_smtp' => $this->enableSMTP,
+            'enable_pattern_filtering' => $this->enablePatternFiltering,
+            'pattern_strict_mode' => false,
+            'dns_cache_driver' => 'array',
+            'dns_cache_ttl' => 3600,
+        ];
+        
+        if (class_exists('KalimeroMK\EmailCheck\EmailValidator')) {
+            $validator = new \KalimeroMK\EmailCheck\EmailValidator($validatorConfig);
+        } else {
+            $validator = new EmailValidator($validatorConfig);
+        }
+        
+        $results = $validator->validateBatch($emails);
+        
+        $validCount = 0;
+        $invalidCount = 0;
+        $validEmails = [];
+        $invalidEmails = [];
+        
+        foreach ($results as $result) {
+            if ($result['is_valid']) {
+                $validEmails[] = $result['email'];
+                $validCount++;
+            } else {
+                $invalidEmails[] = $result['email'];
+                $invalidCount++;
+            }
+        }
+        
+        // Save results to temporary files
+        $tempDir = $this->outputDir . '/temp';
+        if (!is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+        
+        $tempFile = $tempDir . "/batch_{$batchNumber}.json";
+        file_put_contents($tempFile, json_encode([
+            'batch_number' => $batchNumber,
+            'total_emails' => count($emails),
+            'valid_count' => $validCount,
+            'invalid_count' => $invalidCount,
+            'valid_emails' => $validEmails,
+            'invalid_emails' => $invalidEmails,
+            'processing_time' => time(),
+        ]));
+    }
+    
+    /**
+     * Wait for processes to complete and collect results
+     */
+    private function waitForProcesses(array &$activeProcesses): void
+    {
+        foreach ($activeProcesses as $pid => $processInfo) {
+            $status = null;
+            $result = pcntl_waitpid($pid, $status, WNOHANG);
             
-            // Save progress
-            $this->saveProgress($batchNumber, $totalBatches);
+            if ($result == $pid) {
+                // Process completed
+                $this->collectBatchResults($processInfo['batch_number']);
+                
+                echo "   ✅ Batch {$processInfo['batch_number']} completed: {$processInfo['emails_count']} processed\n";
+                echo "   📊 Progress: " . $this->getProgressPercentage() . "%\n";
+                echo "   ⏱️  ETA: " . $this->getEstimatedTimeRemaining() . "\n\n";
+                
+                unset($activeProcesses[$pid]);
+            }
+        }
+        
+        // Small delay to prevent busy waiting
+        usleep(100000); // 0.1 second
+    }
+    
+    /**
+     * Collect results from completed batch
+     */
+    private function collectBatchResults(int $batchNumber): void
+    {
+        $tempFile = $this->outputDir . "/temp/batch_{$batchNumber}.json";
+        
+        if (file_exists($tempFile)) {
+            $data = json_decode(file_get_contents($tempFile), true);
             
-            $processedBatches++;
-            
-            // Memory management
-            $this->manageMemory();
-            
-            echo "   ✅ Batch completed: " . count($batchEmails) . " processed\n";
-            echo "   📊 Progress: " . $this->getProgressPercentage() . "%\n";
-            echo "   ⏱️  ETA: " . $this->getEstimatedTimeRemaining() . "\n\n";
+            if ($data) {
+                $this->processedEmails += $data['total_emails'];
+                $this->validEmails += $data['valid_count'];
+                $this->invalidEmails += $data['invalid_count'];
+                
+                // Add emails to lists
+                $this->validEmailsList = array_merge($this->validEmailsList, $data['valid_emails']);
+                $this->invalidEmailsList = array_merge($this->invalidEmailsList, $data['invalid_emails']);
+                
+                // Save progress
+                $this->saveProgress($batchNumber, ceil($this->totalEmails / $this->batchSize));
+                
+                // Clean up temp file
+                unlink($tempFile);
+            }
         }
     }
     
