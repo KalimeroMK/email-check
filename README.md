@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="logo.png" alt="PHP Email Check Logo" width="200" height="200">
+  <img src="./logo.png" alt="PHP Email Check Logo" width="200">
   <h1>PHP Email Check 📧</h1>
 </div>
 
