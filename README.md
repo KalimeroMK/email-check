@@ -10,9 +10,10 @@ A lightweight PHP library for advanced email address validation. It performs mul
 
 ## 📋 Table of Contents
 
-- [Key Features](#key-features)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
+- [Key Features](#-key-features)
+- [Installation](#-installation)
+- [System Requirements](#-system-requirements)
+- [Quick Start](#-quick-start)
 - [Basic Usage](#basic-usage)
 - [Advanced Features](#advanced-features)
   - [Pattern Filtering](#pattern-filtering)
