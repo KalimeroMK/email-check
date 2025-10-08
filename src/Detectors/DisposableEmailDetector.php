@@ -7,8 +7,11 @@ class DisposableEmailDetector
     /** @var array<string> */
     private array $disposableDomains = [];
 
+    private readonly string $dataFile;
+
     public function __construct()
     {
+        $this->dataFile = __DIR__ . '/../../data/disposable-domains.json';
         $this->loadDisposableDomains();
     }
 
@@ -44,9 +47,51 @@ class DisposableEmailDetector
     }
 
     /**
-     * Load disposable domains list
+     * Load disposable domains list from external sources
      */
     private function loadDisposableDomains(): void
+    {
+        // Try to load from external data file first
+        if ($this->loadFromDataFile()) {
+            return;
+        }
+
+        // Fallback to built-in list if external file is not available
+        $this->loadBuiltInDomains();
+    }
+
+    /**
+     * Load domains from external data file
+     */
+    private function loadFromDataFile(): bool
+    {
+        if (!file_exists($this->dataFile)) {
+            return false;
+        }
+
+        try {
+            $json = file_get_contents($this->dataFile);
+            if ($json === false) {
+                return false;
+            }
+
+            $data = json_decode($json, true);
+            if (!is_array($data) || !isset($data['domains'])) {
+                return false;
+            }
+
+            $this->disposableDomains = $data['domains'];
+            return true;
+
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Load built-in disposable domains (fallback)
+     */
+    private function loadBuiltInDomains(): void
     {
         // Basic list of common disposable email domains
         $this->disposableDomains = [
@@ -85,10 +130,6 @@ class DisposableEmailDetector
             'trashmail.net',
             'trashmail.com',
             'dispostable.com',
-            'mailinator2.com',
-            'mailinator3.com',
-            'mailinator4.com',
-            'mailinator5.com',
             'temp-mail.org',
             'temp-mail.ru',
             'temp-mail.net',
@@ -238,58 +279,6 @@ class DisposableEmailDetector
             'tempmailer.yt',
             'tempmailer.re',
             'tempmailer.mw',
-            'tempmailer.zm',
-            'tempmailer.zw',
-            'tempmailer.bw',
-            'tempmailer.na',
-            'tempmailer.za',
-            'tempmailer.ls',
-            'tempmailer.sz',
-            'tempmailer.ao',
-            'tempmailer.zr',
-            'tempmailer.cd',
-            'tempmailer.cg',
-            'tempmailer.cm',
-            'tempmailer.cf',
-            'tempmailer.td',
-            'tempmailer.ne',
-            'tempmailer.ng',
-            'tempmailer.bj',
-            'tempmailer.tg',
-            'tempmailer.gh',
-            'tempmailer.bf',
-            'tempmailer.ci',
-            'tempmailer.lr',
-            'tempmailer.sl',
-            'tempmailer.gn',
-            'tempmailer.gw',
-            'tempmailer.gm',
-            'tempmailer.sn',
-            'tempmailer.mr',
-            'tempmailer.ml',
-            'tempmailer.dz',
-            'tempmailer.tn',
-            'tempmailer.ly',
-            'tempmailer.eg',
-            'tempmailer.sd',
-            'tempmailer.ss',
-            'tempmailer.et',
-            'tempmailer.er',
-            'tempmailer.dj',
-            'tempmailer.so',
-            'tempmailer.ke',
-            'tempmailer.ug',
-            'tempmailer.rw',
-            'tempmailer.bi',
-            'tempmailer.tz',
-            'tempmailer.mz',
-            'tempmailer.mg',
-            'tempmailer.mu',
-            'tempmailer.sc',
-            'tempmailer.km',
-            'tempmailer.yt',
-            'tempmailer.re',
-            'tempmailer.mw',
         ];
     }
 
@@ -331,5 +320,69 @@ class DisposableEmailDetector
     public function getDisposableDomainCount(): int
     {
         return count($this->disposableDomains);
+    }
+
+    /**
+     * Get metadata about the disposable domains list
+     */
+    public function getDomainsMetadata(): array
+    {
+        if (!file_exists($this->dataFile)) {
+            return [
+                'source' => 'built-in',
+                'total_domains' => count($this->disposableDomains),
+                'last_updated' => null,
+            ];
+        }
+
+        try {
+            $json = file_get_contents($this->dataFile);
+            if ($json === false) {
+                return [
+                    'source' => 'built-in',
+                    'total_domains' => count($this->disposableDomains),
+                    'last_updated' => null,
+                ];
+            }
+
+            $data = json_decode($json, true);
+            if (!is_array($data) || !isset($data['metadata'])) {
+                return [
+                    'source' => 'built-in',
+                    'total_domains' => count($this->disposableDomains),
+                    'last_updated' => null,
+                ];
+            }
+
+            return [
+                'source' => 'external',
+                'total_domains' => $data['metadata']['total_domains'] ?? count($this->disposableDomains),
+                'last_updated' => $data['metadata']['updated_at'] ?? null,
+                'sources' => $data['metadata']['sources'] ?? [],
+            ];
+
+        } catch (\Throwable) {
+            return [
+                'source' => 'built-in',
+                'total_domains' => count($this->disposableDomains),
+                'last_updated' => null,
+            ];
+        }
+    }
+
+    /**
+     * Check if external data file exists
+     */
+    public function hasExternalData(): bool
+    {
+        return file_exists($this->dataFile);
+    }
+
+    /**
+     * Get path to external data file
+     */
+    public function getDataFilePath(): string
+    {
+        return $this->dataFile;
     }
 }

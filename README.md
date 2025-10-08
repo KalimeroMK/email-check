@@ -14,7 +14,7 @@ A lightweight PHP library for advanced email address validation. It performs mul
 - 🔍 **Advanced Validation:** Comprehensive email format validation with length checks and forbidden character detection.
 - ⚡ **DNS Caching:** Built-in caching for DNS queries to improve performance.
 - 💡 **Typo Correction Suggestions:** Offers "Did you mean?" suggestions for common typos in domain names.
-- 🚫 **Disposable Email Detection:** Blocks known disposable/temporary email services.
+- 🚫 **Disposable Email Detection:** Blocks known disposable/temporary email services with auto-updating lists from multiple sources.
 - 📧 **SMTP Validation:** Optional real-time SMTP validation to verify mailbox existence (disabled by default).
 - 🔧 **Configurable:** Customizable DNS servers, timeouts, and validation options.
 - 📦 **Batch Processing:** Validate multiple emails at once.
@@ -127,6 +127,74 @@ echo "Total: " . $result['stats']['total'];
 echo "Valid: " . $result['stats']['valid'];
 echo "Pattern Rejected: " . $result['stats']['pattern_rejected'];
 ```
+
+### Advanced Usage: Disposable Email Auto-Update
+
+The library includes an automatic update system for disposable email domains that fetches data from multiple sources:
+
+#### Manual Update
+
+Update the disposable domains list manually:
+
+```bash
+# Run the update script
+php scripts/update-disposable-domains.php
+```
+
+#### Automatic Update (Cron Job)
+
+Set up automatic daily updates using cron:
+
+```bash
+# Add to crontab (run daily at 2 AM)
+0 2 * * * /path/to/your/project/scripts/auto-update-disposable-domains.sh
+```
+
+#### Update Sources
+
+The system fetches domains from multiple sources:
+
+1. **andreis/disposable-email-domains** (Primary source)
+   - URL: `https://raw.githubusercontent.com/disposable/disposable-email-domains/master/domains.txt`
+   - Updates: Daily/Weekly
+   - Format: Plain text, one domain per line
+
+2. **FGRibreau/mailchecker** (Alternative source)
+   - URL: `https://raw.githubusercontent.com/FGRibreau/mailchecker/master/list.txt`
+   - Updates: Regular
+   - Format: Plain text, one domain per line
+
+#### Monitoring Disposable Domains
+
+Check the status of your disposable domains list:
+
+```php
+use KalimeroMK\EmailCheck\Detectors\DisposableEmailDetector;
+
+$detector = new DisposableEmailDetector();
+$metadata = $detector->getDomainsMetadata();
+
+echo "Source: " . $metadata['source'] . "\n";
+echo "Total domains: " . $metadata['total_domains'] . "\n";
+echo "Last updated: " . ($metadata['last_updated'] ?? 'N/A') . "\n";
+echo "Has external data: " . ($detector->hasExternalData() ? 'Yes' : 'No') . "\n";
+
+// Test domains
+$testDomains = ['gmail.com', 'mailinator.com', '10minutemail.com'];
+foreach ($testDomains as $domain) {
+    $isDisposable = $detector->isDisposableDomain($domain);
+    echo $domain . ': ' . ($isDisposable ? 'DISPOSABLE' : 'VALID') . "\n";
+}
+```
+
+#### Update Statistics
+
+The update process provides detailed statistics:
+
+- **Total domains:** Combined unique domains from all sources
+- **Source counts:** Number of domains from each source
+- **Deduplication:** Automatic removal of duplicate domains
+- **Validation:** Domain format validation before inclusion
 
 ### Advanced Usage: DNS Cache Configuration
 
