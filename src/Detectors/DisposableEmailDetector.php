@@ -11,7 +11,7 @@ class DisposableEmailDetector
 
     public function __construct()
     {
-        $this->dataFile = __DIR__ . '/../../data/disposable-domains.json';
+        $this->dataFile = __DIR__ . '/../data/disposable-domains.json';
         $this->loadDisposableDomains();
     }
 

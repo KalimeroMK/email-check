@@ -138,7 +138,7 @@ Update the disposable domains list manually:
 
 ```bash
 # Run the update script
-php scripts/update-disposable-domains.php
+php src/Scripts/update-disposable-domains.php
 ```
 
 #### Automatic Update (Cron Job)
@@ -147,7 +147,7 @@ Set up automatic daily updates using cron:
 
 ```bash
 # Add to crontab (run daily at 2 AM)
-0 2 * * * /path/to/your/project/scripts/auto-update-disposable-domains.sh
+0 2 * * * /path/to/your/project/src/Scripts/auto-update-disposable-domains.sh
 ```
 
 #### Update Sources
@@ -155,6 +155,7 @@ Set up automatic daily updates using cron:
 The system fetches domains from multiple sources:
 
 1. **andreis/disposable-email-domains** (Primary source)
+
    - URL: `https://raw.githubusercontent.com/disposable/disposable-email-domains/master/domains.txt`
    - Updates: Daily/Weekly
    - Format: Plain text, one domain per line
