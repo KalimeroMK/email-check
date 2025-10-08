@@ -40,12 +40,13 @@ class MassEmailValidator
     private string $statsFile;
     
     // Configuration
-    private int $batchSize = 1000;
+    private int $batchSize = 2000; // Larger batches for better throughput
     private int $maxProcesses = 4; // Will be auto-detected
-    private int $memoryLimit = 128 * 1024 * 1024; // 128MB per process
+    private int $memoryLimit = 256 * 1024 * 1024; // 256MB per process for larger batches
     private int $maxExecutionTime = 3600; // 1 hour per batch
     private bool $enableSMTP = false; // Disable SMTP for speed
     private bool $enablePatternFiltering = true; // Enable fast pattern filtering
+    private bool $aggressiveMode = false; // Ultra-fast mode for massive datasets
     
     public function __construct(array $config = [])
     {
@@ -430,10 +431,18 @@ class MassEmailValidator
             $this->maxProcesses = $this->detectCPUCores();
         }
         
-        $this->memoryLimit = $config['memory_limit'] ?? (128 * 1024 * 1024);
+        $this->memoryLimit = $config['memory_limit'] ?? (256 * 1024 * 1024);
         $this->maxExecutionTime = $config['max_execution_time'] ?? 3600;
         $this->enableSMTP = $config['enable_smtp'] ?? false;
         $this->enablePatternFiltering = $config['enable_pattern_filtering'] ?? true;
+        $this->aggressiveMode = $config['aggressive_mode'] ?? false;
+        
+        // Aggressive mode optimizations
+        if ($this->aggressiveMode) {
+            $this->batchSize = max($this->batchSize, 5000); // Larger batches
+            $this->maxProcesses = min($this->maxProcesses * 2, 80); // More processes
+            $this->memoryLimit = max($this->memoryLimit, 512 * 1024 * 1024); // More memory
+        }
     }
     
     /**
@@ -488,7 +497,7 @@ class MassEmailValidator
         }
         
         // Fallback: Use a reasonable default based on common server configs
-        return max(4, min(32, $cores)); // Between 4 and 32 cores
+        return max(4, min(64, $cores)); // Between 4 and 64 cores for high-end servers
     }
     
     /**
@@ -652,11 +661,12 @@ if (php_sapi_name() === 'cli') {
     if ($argc < 2) {
         echo "Usage: php mass-email-validator.php <input_file> [options]\n";
         echo "\nOptions:\n";
-        echo "  --batch-size=<size>        Batch size (default: 1000)\n";
-        echo "  --max-processes=<count>    Max parallel processes (default: 4)\n";
-        echo "  --memory-limit=<bytes>      Memory limit per process (default: 128MB)\n";
+        echo "  --batch-size=<size>        Batch size (default: 2000)\n";
+        echo "  --max-processes=<count>    Max parallel processes (auto-detected)\n";
+        echo "  --memory-limit=<bytes>      Memory limit per process (default: 256MB)\n";
         echo "  --enable-smtp              Enable SMTP validation (slower)\n";
         echo "  --disable-pattern-filter   Disable pattern filtering\n";
+        echo "  --aggressive-mode          Ultra-fast mode for massive datasets\n";
         echo "\nExample:\n";
         echo "  php mass-email-validator.php emails.json --batch-size=2000 --max-processes=8\n";
         exit(1);
@@ -688,6 +698,9 @@ if (php_sapi_name() === 'cli') {
                     break;
                 case 'disable-pattern-filter':
                     $options['enable_pattern_filtering'] = false;
+                    break;
+                case 'aggressive-mode':
+                    $options['aggressive_mode'] = true;
                     break;
             }
         }
