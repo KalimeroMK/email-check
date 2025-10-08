@@ -41,7 +41,7 @@ class MassEmailValidator
     
     // Configuration
     private int $batchSize = 1000;
-    private int $maxProcesses = 4; // Use all 4 CPU cores
+    private int $maxProcesses = 4; // Will be auto-detected
     private int $memoryLimit = 128 * 1024 * 1024; // 128MB per process
     private int $maxExecutionTime = 3600; // 1 hour per batch
     private bool $enableSMTP = false; // Disable SMTP for speed
@@ -422,11 +422,73 @@ class MassEmailValidator
     private function loadConfiguration(array $config): void
     {
         $this->batchSize = $config['batch_size'] ?? 1000;
-        $this->maxProcesses = $config['max_processes'] ?? 4;
+        
+        // Auto-detect CPU cores if not specified
+        if (isset($config['max_processes'])) {
+            $this->maxProcesses = (int) $config['max_processes'];
+        } else {
+            $this->maxProcesses = $this->detectCPUCores();
+        }
+        
         $this->memoryLimit = $config['memory_limit'] ?? (128 * 1024 * 1024);
         $this->maxExecutionTime = $config['max_execution_time'] ?? 3600;
         $this->enableSMTP = $config['enable_smtp'] ?? false;
         $this->enablePatternFiltering = $config['enable_pattern_filtering'] ?? true;
+    }
+    
+    /**
+     * Detect number of CPU cores
+     */
+    private function detectCPUCores(): int
+    {
+        // Try different methods to detect CPU cores
+        $cores = 1;
+        
+        // Method 1: /proc/cpuinfo (Linux)
+        if (is_readable('/proc/cpuinfo')) {
+            $cpuinfo = file_get_contents('/proc/cpuinfo');
+            if ($cpuinfo !== false) {
+                $cores = substr_count($cpuinfo, 'processor');
+                if ($cores > 0) {
+                    return $cores;
+                }
+            }
+        }
+        
+        // Method 2: sysctl (macOS/BSD)
+        if (function_exists('shell_exec')) {
+            $result = shell_exec('sysctl -n hw.ncpu 2>/dev/null');
+            if ($result !== null) {
+                $cores = (int) trim($result);
+                if ($cores > 0) {
+                    return $cores;
+                }
+            }
+        }
+        
+        // Method 3: nproc command
+        if (function_exists('shell_exec')) {
+            $result = shell_exec('nproc 2>/dev/null');
+            if ($result !== null) {
+                $cores = (int) trim($result);
+                if ($cores > 0) {
+                    return $cores;
+                }
+            }
+        }
+        
+        // Method 4: PHP function (if available)
+        if (function_exists('sys_getloadavg')) {
+            // This doesn't give core count directly, but we can estimate
+            $load = sys_getloadavg();
+            if ($load[0] > 0) {
+                // Estimate based on load average (not very accurate)
+                $cores = max(1, (int) ($load[0] * 2));
+            }
+        }
+        
+        // Fallback: Use a reasonable default based on common server configs
+        return max(4, min(32, $cores)); // Between 4 and 32 cores
     }
     
     /**
@@ -563,6 +625,22 @@ class MassEmailValidator
             'estimated_remaining' => $this->getEstimatedTimeRemaining(),
         ];
     }
+    
+    /**
+     * Get max processes
+     */
+    public function getMaxProcesses(): int
+    {
+        return $this->maxProcesses;
+    }
+    
+    /**
+     * Get detected CPU cores (public method)
+     */
+    public function getDetectedCPUCores(): int
+    {
+        return $this->detectCPUCores();
+    }
 }
 
 // CLI usage
@@ -650,6 +728,10 @@ if (php_sapi_name() === 'cli') {
     
     // Initialize validator
     $validator = new MassEmailValidator($options);
+    
+    // Show CPU detection info
+    echo "🖥️  Detected CPU cores: " . $validator->getDetectedCPUCores() . "\n";
+    echo "⚙️  Using processes: " . $validator->getMaxProcesses() . "\n\n";
     
     // Start validation
     $result = $validator->validateMassEmails($emails);
