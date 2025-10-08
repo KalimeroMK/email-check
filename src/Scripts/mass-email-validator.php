@@ -22,7 +22,7 @@ use Throwable;
  */
 class MassEmailValidator
 {
-    public $maxExecutionTime;
+    public int $maxExecutionTime;
     private EmailValidator $emailValidator;
 
     private int $totalEmails = 0;
