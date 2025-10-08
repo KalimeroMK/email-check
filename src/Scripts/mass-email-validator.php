@@ -50,16 +50,16 @@ class MassEmailValidator
     private string $statsFile;
 
     // Configuration
-    private int $batchSize = 2000;
-     // Larger batches for better throughput
-    private int $maxProcesses = 4;
-     // Will be auto-detected
-    private int $memoryLimit = 256 * 1024 * 1024;
-     // 256MB per process for larger batches
+    private int $batchSize = 5000;
+    // Larger batches for better throughput
+    private int $maxProcesses = 40;
+    // Will be auto-detected (40 cores with 80 threads)
+    private int $memoryLimit = 1024 * 1024 * 1024;
+    // 1GB per process for massive datasets
     private bool $enableSMTP = false;
-     // Disable SMTP for speed
+    // Disable SMTP for speed
     private bool $enablePatternFiltering = true;
-     // Enable fast pattern filtering
+    // Enable fast pattern filtering
     private bool $aggressiveMode = false; // Ultra-fast mode for massive datasets
 
     public function __construct(array $config = [])
@@ -437,22 +437,22 @@ class MassEmailValidator
      */
     private function loadConfiguration(array $config): void
     {
-        $this->batchSize = $config['batch_size'] ?? 1000;
+        $this->batchSize = $config['batch_size'] ?? 5000;
 
         // Auto-detect CPU cores if not specified
         $this->maxProcesses = isset($config['max_processes']) ? (int) $config['max_processes'] : $this->detectCPUCores();
 
-        $this->memoryLimit = $config['memory_limit'] ?? (256 * 1024 * 1024);
+        $this->memoryLimit = $config['memory_limit'] ?? (1024 * 1024 * 1024);
         $this->maxExecutionTime = $config['max_execution_time'] ?? 3600;
         $this->enableSMTP = $config['enable_smtp'] ?? false;
         $this->enablePatternFiltering = $config['enable_pattern_filtering'] ?? true;
         $this->aggressiveMode = $config['aggressive_mode'] ?? false;
 
-        // Aggressive mode optimizations
+        // Aggressive mode optimizations for 40-core/80-thread server with 128GB RAM
         if ($this->aggressiveMode) {
-            $this->batchSize = max($this->batchSize, 5000); // Larger batches
-            $this->maxProcesses = min($this->maxProcesses * 2, 80); // More processes
-            $this->memoryLimit = max($this->memoryLimit, 512 * 1024 * 1024); // More memory
+            $this->batchSize = max($this->batchSize, 10000); // Much larger batches
+            $this->maxProcesses = max($this->maxProcesses, 80); // Use all 80 threads
+            $this->memoryLimit = max($this->memoryLimit, 2048 * 1024 * 1024); // 2GB per process
         }
     }
 
@@ -508,7 +508,7 @@ class MassEmailValidator
         }
 
         // Fallback: Use a reasonable default based on common server configs
-        return max(4, min(64, $cores)); // Between 4 and 64 cores for high-end servers
+        return max(40, min(80, $cores)); // Between 40 and 80 cores for high-end servers
     }
 
     /**
