@@ -57,14 +57,14 @@ test_emails_*.json
 test_emails_10k.json
 test_sample_10k.json
 
-# Data directory - generated files
-src/data/
-src/Data/
-data/
-Data/
-
-# Validation results
+# Validation results - generated files only
+src/data/mass_validation_*/
+src/Data/mass_validation_*/
+data/mass_validation_*/
+Data/mass_validation_*/
 mass_validation_*/
+
+# Generated validation output files
 valid_emails*.json
 invalid_emails*.json
 statistics*.json
