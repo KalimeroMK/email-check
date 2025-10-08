@@ -22,38 +22,53 @@ use Throwable;
  */
 class MassEmailValidator
 {
+    public $maxExecutionTime;
     private EmailValidator $emailValidator;
-    
+
     private int $totalEmails = 0;
+
     private int $processedEmails = 0;
+
     private int $validEmails = 0;
+
     private int $invalidEmails = 0;
+
     private int $startTime = 0;
-    
+
     private array $validEmailsList = [];
+
     private array $invalidEmailsList = [];
-    
+
     private string $outputDir;
+
     private string $progressFile;
+
     private string $validEmailsFile;
+
     private string $invalidEmailsFile;
+
     private string $statsFile;
-    
+
     // Configuration
-    private int $batchSize = 2000; // Larger batches for better throughput
-    private int $maxProcesses = 4; // Will be auto-detected
-    private int $memoryLimit = 256 * 1024 * 1024; // 256MB per process for larger batches
-    private bool $enableSMTP = false; // Disable SMTP for speed
-    private bool $enablePatternFiltering = true; // Enable fast pattern filtering
+    private int $batchSize = 2000;
+     // Larger batches for better throughput
+    private int $maxProcesses = 4;
+     // Will be auto-detected
+    private int $memoryLimit = 256 * 1024 * 1024;
+     // 256MB per process for larger batches
+    private bool $enableSMTP = false;
+     // Disable SMTP for speed
+    private bool $enablePatternFiltering = true;
+     // Enable fast pattern filtering
     private bool $aggressiveMode = false; // Ultra-fast mode for massive datasets
-    
+
     public function __construct(array $config = [])
     {
         $this->loadConfiguration($config);
         $this->initializeValidator();
         $this->setupOutputFiles();
     }
-    
+
     /**
      * Main validation process
      */
@@ -61,22 +76,22 @@ class MassEmailValidator
     {
         $this->totalEmails = count($emails);
         $this->startTime = time();
-        
+
         echo "🚀 Starting mass email validation...\n";
         echo "📊 Total emails: " . number_format($this->totalEmails) . "\n";
         echo "⚙️  Configuration:\n";
         echo "   - Batch size: " . number_format($this->batchSize) . "\n";
-        echo "   - Max processes: {$this->maxProcesses}\n";
+        echo sprintf('   - Max processes: %d%s', $this->maxProcesses, PHP_EOL);
         echo "   - Memory limit: " . $this->formatBytes($this->memoryLimit) . "\n";
         echo "   - SMTP validation: " . ($this->enableSMTP ? 'Enabled' : 'Disabled') . "\n";
         echo "   - Pattern filtering: " . ($this->enablePatternFiltering ? 'Enabled' : 'Disabled') . "\n\n";
-        
+
         // Process emails in parallel batches
         $this->processParallelBatches($emails);
-        
+
         // Generate final results
         $this->generateFinalResults();
-        
+
         return [
             'success' => true,
             'total_emails' => $this->totalEmails,
@@ -91,31 +106,31 @@ class MassEmailValidator
             ],
         ];
     }
-    
+
     /**
      * Process emails in parallel batches using multiple processes
      */
     private function processParallelBatches(array $emails): void
     {
         $totalBatches = ceil($this->totalEmails / $this->batchSize);
-        
+
         echo "📦 Processing " . number_format($totalBatches) . " batches with {$this->maxProcesses} parallel processes...\n\n";
-        
+
         $batchNumber = 0;
         $activeProcesses = [];
-        
+
         for ($batchStart = 0; $batchStart < $this->totalEmails; $batchStart += $this->batchSize) {
             $batchEnd = min($batchStart + $this->batchSize, $this->totalEmails);
             $batchEmails = array_slice($emails, $batchStart, $batchEnd - $batchStart);
             $batchNumber++;
-            
+
             // If we have reached max processes, wait for one to finish
             while (count($activeProcesses) >= $this->maxProcesses) {
                 $this->waitForProcesses($activeProcesses);
             }
-            
-            echo "🔄 Starting batch {$batchNumber}/{$totalBatches} (" . count($batchEmails) . " emails)...\n";
-            
+
+            echo sprintf('🔄 Starting batch %d/%s (', $batchNumber, $totalBatches) . count($batchEmails) . " emails)...\n";
+
             // Start new process
             $pid = $this->startBatchProcess($batchEmails, $batchNumber);
             if ($pid > 0) {
@@ -129,21 +144,21 @@ class MassEmailValidator
                 $batchResults = $this->processBatch($batchEmails, $batchNumber);
                 $this->updateStatistics($batchResults);
                 $this->saveProgress($batchNumber, (int) $totalBatches);
-                
+
                 echo "   ✅ Batch completed: " . count($batchEmails) . " processed\n";
                 echo "   📊 Progress: " . $this->getProgressPercentage() . "%\n";
                 echo "   ⏱️  ETA: " . $this->getEstimatedTimeRemaining() . "\n\n";
             }
         }
-        
+
         // Wait for all remaining processes to finish
         while (!empty($activeProcesses)) {
             $this->waitForProcesses($activeProcesses);
         }
-        
+
         echo "🎉 All batches completed!\n\n";
     }
-    
+
     /**
      * Start a batch process using fork
      */
@@ -152,9 +167,9 @@ class MassEmailValidator
         if (!function_exists('pcntl_fork')) {
             return 0; // Fork not available
         }
-        
+
         $pid = pcntl_fork();
-        
+
         if ($pid == -1) {
             return 0; // Fork failed
         } elseif ($pid == 0) {
@@ -166,7 +181,7 @@ class MassEmailValidator
             return $pid;
         }
     }
-    
+
     /**
      * Process batch in child process
      */
@@ -181,20 +196,16 @@ class MassEmailValidator
             'dns_cache_driver' => 'array',
             'dns_cache_ttl' => 3600,
         ];
-        
-        if (class_exists('KalimeroMK\EmailCheck\EmailValidator')) {
-            $validator = new \KalimeroMK\EmailCheck\EmailValidator($validatorConfig);
-        } else {
-            $validator = new EmailValidator($validatorConfig);
-        }
-        
+
+        $validator = new \KalimeroMK\EmailCheck\EmailValidator($validatorConfig);
+
         $results = $validator->validateBatch($emails);
-        
+
         $validCount = 0;
         $invalidCount = 0;
         $validEmails = [];
         $invalidEmails = [];
-        
+
         foreach ($results as $result) {
             if ($result['is_valid']) {
                 $validEmails[] = $result['email'];
@@ -204,14 +215,14 @@ class MassEmailValidator
                 $invalidCount++;
             }
         }
-        
+
         // Save results to temporary files
         $tempDir = $this->outputDir . '/temp';
         if (!is_dir($tempDir)) {
             mkdir($tempDir, 0755, true);
         }
-        
-        $tempFile = $tempDir . "/batch_{$batchNumber}.json";
+
+        $tempFile = $tempDir . sprintf('/batch_%d.json', $batchNumber);
         file_put_contents($tempFile, json_encode([
             'batch_number' => $batchNumber,
             'total_emails' => count($emails),
@@ -222,7 +233,7 @@ class MassEmailValidator
             'processing_time' => time(),
         ]));
     }
-    
+
     /**
      * Wait for processes to complete and collect results
      */
@@ -231,69 +242,69 @@ class MassEmailValidator
         foreach ($activeProcesses as $pid => $processInfo) {
             $status = null;
             $result = pcntl_waitpid($pid, $status, WNOHANG);
-            
+
             if ($result == $pid) {
                 // Process completed
                 $this->collectBatchResults($processInfo['batch_number']);
-                
+
                 echo "   ✅ Batch {$processInfo['batch_number']} completed: {$processInfo['emails_count']} processed\n";
                 echo "   📊 Progress: " . $this->getProgressPercentage() . "%\n";
                 echo "   ⏱️  ETA: " . $this->getEstimatedTimeRemaining() . "\n\n";
-                
+
                 unset($activeProcesses[$pid]);
             }
         }
-        
+
         // Small delay to prevent busy waiting
         usleep(100000); // 0.1 second
     }
-    
+
     /**
      * Collect results from completed batch
      */
     private function collectBatchResults(int $batchNumber): void
     {
-        $tempFile = $this->outputDir . "/temp/batch_{$batchNumber}.json";
-        
+        $tempFile = $this->outputDir . sprintf('/temp/batch_%d.json', $batchNumber);
+
         if (file_exists($tempFile)) {
             $content = file_get_contents($tempFile);
             if ($content === false) {
                 return;
             }
-            
+
             $data = json_decode($content, true);
-            
+
             if ($data !== null) {
                 $this->processedEmails += $data['total_emails'];
                 $this->validEmails += $data['valid_count'];
                 $this->invalidEmails += $data['invalid_count'];
-                
+
                 // Add emails to lists
                 $this->validEmailsList = array_merge($this->validEmailsList, $data['valid_emails']);
                 $this->invalidEmailsList = array_merge($this->invalidEmailsList, $data['invalid_emails']);
-                
+
                 // Save progress
                 $this->saveProgress($batchNumber, (int) ceil($this->totalEmails / $this->batchSize));
-                
+
                 // Clean up temp file
                 unlink($tempFile);
             }
         }
     }
-    
+
     /**
      * Process a single batch of emails
      */
     private function processBatch(array $emails, int $batchNumber): array
     {
         $batchStartTime = time();
-        
+
         // Validate emails using the existing validateBatch method
         $results = $this->emailValidator->validateBatch($emails);
-        
+
         $validCount = 0;
         $invalidCount = 0;
-        
+
         foreach ($results as $result) {
             if ($result['is_valid']) {
                 $this->validEmailsList[] = $result['email'];
@@ -303,9 +314,9 @@ class MassEmailValidator
                 $invalidCount++;
             }
         }
-        
+
         $batchTime = time() - $batchStartTime;
-        
+
         return [
             'batch_number' => $batchNumber,
             'total_emails' => count($emails),
@@ -314,7 +325,7 @@ class MassEmailValidator
             'processing_time' => $batchTime,
         ];
     }
-    
+
     /**
      * Update global statistics
      */
@@ -324,7 +335,7 @@ class MassEmailValidator
         $this->validEmails += $batchResults['valid_count'];
         $this->invalidEmails += $batchResults['invalid_count'];
     }
-    
+
     /**
      * Save progress to file
      */
@@ -342,32 +353,32 @@ class MassEmailValidator
             'elapsed_time' => time() - $this->startTime,
             'estimated_remaining' => $this->getEstimatedTimeRemaining(),
         ];
-        
+
         file_put_contents($this->progressFile, json_encode($progress, JSON_PRETTY_PRINT));
     }
-    
+
     /**
      * Generate final results and save to files
      */
     private function generateFinalResults(): void
     {
         echo "📝 Generating final results...\n";
-        
+
         // Save valid emails
         $this->saveEmailsToFile($this->validEmailsList, $this->validEmailsFile);
-        
+
         // Save invalid emails
         $this->saveEmailsToFile($this->invalidEmailsList, $this->invalidEmailsFile);
-        
+
         // Generate statistics
         $this->generateStatistics();
-        
+
         echo "✅ Results saved to:\n";
-        echo "   📄 Valid emails: {$this->validEmailsFile}\n";
-        echo "   📄 Invalid emails: {$this->invalidEmailsFile}\n";
-        echo "   📊 Statistics: {$this->statsFile}\n";
+        echo sprintf('   📄 Valid emails: %s%s', $this->validEmailsFile, PHP_EOL);
+        echo sprintf('   📄 Invalid emails: %s%s', $this->invalidEmailsFile, PHP_EOL);
+        echo sprintf('   📊 Statistics: %s%s', $this->statsFile, PHP_EOL);
     }
-    
+
     /**
      * Save emails to JSON file
      */
@@ -381,10 +392,10 @@ class MassEmailValidator
             ],
             'emails' => $emails,
         ];
-        
+
         file_put_contents($filename, json_encode($data, JSON_PRETTY_PRINT));
     }
-    
+
     /**
      * Generate comprehensive statistics
      */
@@ -392,7 +403,7 @@ class MassEmailValidator
     {
         $totalTime = time() - $this->startTime;
         $emailsPerSecond = $this->processedEmails / max($totalTime, 1);
-        
+
         $stats = [
             'summary' => [
                 'total_emails' => $this->totalEmails,
@@ -417,30 +428,26 @@ class MassEmailValidator
             ],
             'generated_at' => date('Y-m-d H:i:s'),
         ];
-        
+
         file_put_contents($this->statsFile, json_encode($stats, JSON_PRETTY_PRINT));
     }
-    
+
     /**
      * Load configuration
      */
     private function loadConfiguration(array $config): void
     {
         $this->batchSize = $config['batch_size'] ?? 1000;
-        
+
         // Auto-detect CPU cores if not specified
-        if (isset($config['max_processes'])) {
-            $this->maxProcesses = (int) $config['max_processes'];
-        } else {
-            $this->maxProcesses = $this->detectCPUCores();
-        }
-        
+        $this->maxProcesses = isset($config['max_processes']) ? (int) $config['max_processes'] : $this->detectCPUCores();
+
         $this->memoryLimit = $config['memory_limit'] ?? (256 * 1024 * 1024);
         $this->maxExecutionTime = $config['max_execution_time'] ?? 3600;
         $this->enableSMTP = $config['enable_smtp'] ?? false;
         $this->enablePatternFiltering = $config['enable_pattern_filtering'] ?? true;
         $this->aggressiveMode = $config['aggressive_mode'] ?? false;
-        
+
         // Aggressive mode optimizations
         if ($this->aggressiveMode) {
             $this->batchSize = max($this->batchSize, 5000); // Larger batches
@@ -448,7 +455,7 @@ class MassEmailValidator
             $this->memoryLimit = max($this->memoryLimit, 512 * 1024 * 1024); // More memory
         }
     }
-    
+
     /**
      * Detect number of CPU cores
      */
@@ -456,7 +463,7 @@ class MassEmailValidator
     {
         // Try different methods to detect CPU cores
         $cores = 1;
-        
+
         // Method 1: /proc/cpuinfo (Linux)
         if (is_readable('/proc/cpuinfo')) {
             $cpuinfo = file_get_contents('/proc/cpuinfo');
@@ -467,7 +474,7 @@ class MassEmailValidator
                 }
             }
         }
-        
+
         // Method 2: sysctl (macOS/BSD)
         if (function_exists('shell_exec')) {
             $result = shell_exec('sysctl -n hw.ncpu 2>/dev/null');
@@ -478,7 +485,7 @@ class MassEmailValidator
                 }
             }
         }
-        
+
         // Method 3: nproc command
         if (function_exists('shell_exec')) {
             $result = shell_exec('nproc 2>/dev/null');
@@ -489,7 +496,7 @@ class MassEmailValidator
                 }
             }
         }
-        
+
         // Method 4: PHP function (if available)
         if (function_exists('sys_getloadavg')) {
             // This doesn't give core count directly, but we can estimate
@@ -499,11 +506,11 @@ class MassEmailValidator
                 $cores = max(1, (int) ($load[0] * 2));
             }
         }
-        
+
         // Fallback: Use a reasonable default based on common server configs
         return max(4, min(64, $cores)); // Between 4 and 64 cores for high-end servers
     }
-    
+
     /**
      * Initialize email validator with optimized configuration
      */
@@ -517,10 +524,10 @@ class MassEmailValidator
             'dns_cache_driver' => 'array', // Use in-memory cache for speed
             'dns_cache_ttl' => 3600,
         ];
-        
+
         $this->emailValidator = new EmailValidator($validatorConfig);
     }
-    
+
     /**
      * Setup output file paths
      */
@@ -528,17 +535,17 @@ class MassEmailValidator
     {
         $timestamp = date('Y-m-d_H-i-s');
         $this->outputDir = __DIR__ . '/../data/mass_validation_' . $timestamp;
-        
+
         if (!is_dir($this->outputDir)) {
             mkdir($this->outputDir, 0755, true);
         }
-        
+
         $this->progressFile = $this->outputDir . '/progress.json';
         $this->validEmailsFile = $this->outputDir . '/valid_emails.json';
         $this->invalidEmailsFile = $this->outputDir . '/invalid_emails.json';
         $this->statsFile = $this->outputDir . '/statistics.json';
     }
-    
+
     /**
      * Get progress percentage
      */
@@ -547,10 +554,10 @@ class MassEmailValidator
         if ($this->totalEmails === 0) {
             return 0;
         }
-        
+
         return round(($this->processedEmails / $this->totalEmails) * 100, 2);
     }
-    
+
     /**
      * Get estimated time remaining
      */
@@ -559,18 +566,19 @@ class MassEmailValidator
         if ($this->processedEmails === 0) {
             return 'Calculating...';
         }
-        
+
         $elapsedTime = time() - $this->startTime;
         if ($elapsedTime === 0) {
             return 'Calculating...';
         }
+
         $emailsPerSecond = $this->processedEmails / $elapsedTime;
         $remainingEmails = $this->totalEmails - $this->processedEmails;
         $remainingSeconds = $remainingEmails / max($emailsPerSecond, 0.1);
-        
+
         return $this->formatTime($remainingSeconds);
     }
-    
+
     /**
      * Format bytes to human readable format
      */
@@ -578,15 +586,15 @@ class MassEmailValidator
     {
         $units = ['B', 'KB', 'MB', 'GB'];
         $unitIndex = 0;
-        
+
         while ($bytes >= 1024 && $unitIndex < count($units) - 1) {
             $bytes /= 1024;
             $unitIndex++;
         }
-        
+
         return round($bytes, 2) . ' ' . $units[$unitIndex];
     }
-    
+
     /**
      * Format time in seconds to human readable format
      */
@@ -594,17 +602,19 @@ class MassEmailValidator
     {
         $hours = floor($seconds / 3600);
         $minutes = floor(($seconds % 3600) / 60);
-        $seconds = $seconds % 60;
-        
+        $seconds %= 60;
         if ($hours > 0) {
             return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
-        } elseif ($minutes > 0) {
+        }
+
+        if ($minutes > 0) {
             return sprintf('%02d:%02d', $minutes, $seconds);
-        } else {
+        }
+        else {
             return sprintf('%02d seconds', $seconds);
         }
     }
-    
+
     /**
      * Get current statistics
      */
@@ -620,7 +630,7 @@ class MassEmailValidator
             'estimated_remaining' => $this->getEstimatedTimeRemaining(),
         ];
     }
-    
+
     /**
      * Get max processes
      */
@@ -628,7 +638,7 @@ class MassEmailValidator
     {
         return $this->maxProcesses;
     }
-    
+
     /**
      * Get detected CPU cores (public method)
      */
@@ -639,7 +649,7 @@ class MassEmailValidator
 }
 
 // CLI usage
-if (php_sapi_name() === 'cli') {
+if (PHP_SAPI === 'cli') {
     echo "Mass Email Validation Dispatcher\n";
     echo "=================================\n\n";
     
@@ -716,15 +726,13 @@ if (php_sapi_name() === 'cli') {
     if (isset($emailsData['emails']) && is_array($emailsData['emails'])) {
         $emails = $emailsData['emails'];
     } elseif (is_array($emailsData)) {
-        $emails = array_map(function($item) {
-            return is_array($item) && isset($item['email']) ? $item['email'] : $item;
-        }, $emailsData);
+        $emails = array_map(fn($item) => is_array($item) && isset($item['email']) ? $item['email'] : $item, $emailsData);
     } else {
         echo "❌ Error: Invalid email data format.\n";
         exit(1);
     }
     
-    if (empty($emails)) {
+    if ($emails === []) {
         echo "❌ Error: No emails found in input file.\n";
         exit(1);
     }
@@ -747,7 +755,7 @@ if (php_sapi_name() === 'cli') {
         echo "✅ Valid emails: " . number_format($result['valid_emails']) . "\n";
         echo "❌ Invalid emails: " . number_format($result['invalid_emails']) . "\n";
         echo "⏱️  Processing time: " . formatTime($result['processing_time']) . "\n";
-        echo "📁 Output files saved to: " . dirname($result['output_files']['valid']) . "\n";
+        echo "📁 Output files saved to: " . dirname((string) $result['output_files']['valid']) . "\n";
     } else {
         echo "\n❌ Validation failed.\n";
         exit(1);
@@ -760,14 +768,17 @@ if (php_sapi_name() === 'cli') {
 function parseMemoryLimit(string $limit): int
 {
     $limit = strtoupper(trim($limit));
-    
     if (str_ends_with($limit, 'GB')) {
         return (int) substr($limit, 0, -2) * 1024 * 1024 * 1024;
-    } elseif (str_ends_with($limit, 'MB')) {
+    }
+    if (str_ends_with($limit, 'MB')) {
         return (int) substr($limit, 0, -2) * 1024 * 1024;
-    } elseif (str_ends_with($limit, 'KB')) {
+    }
+    
+    if (str_ends_with($limit, 'KB')) {
         return (int) substr($limit, 0, -2) * 1024;
-    } else {
+    }
+    else {
         return (int) $limit;
     }
 }
@@ -779,13 +790,15 @@ function formatTime(int $seconds): string
 {
     $hours = floor($seconds / 3600);
     $minutes = floor(($seconds % 3600) / 60);
-    $seconds = $seconds % 60;
-    
+    $seconds %= 60;
     if ($hours > 0) {
         return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
-    } elseif ($minutes > 0) {
+    }
+    
+    if ($minutes > 0) {
         return sprintf('%02d:%02d', $minutes, $seconds);
-    } else {
+    }
+    else {
         return sprintf('%02d seconds', $seconds);
     }
 }

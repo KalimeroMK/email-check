@@ -292,7 +292,7 @@ class CachedDnsValidator implements DnsCheckerInterface
     private function loadCacheDriverFromEnv(): string
     {
         $driver = $_ENV['EMAIL_DNS_CACHE_DRIVER'] ?? $_SERVER['EMAIL_DNS_CACHE_DRIVER'] ?? 'file';
-        $driver = strtolower(trim($driver));
+        $driver = strtolower(trim((string) $driver));
         
         // Validate driver and fallback to array if invalid
         $validDrivers = ['file', 'redis', 'array', 'null'];
@@ -311,18 +311,13 @@ class CachedDnsValidator implements DnsCheckerInterface
     private function createCacheInstance(array $config): CacheInterface
     {
         try {
-            switch ($this->cacheDriver) {
-                case 'redis':
-                    return $this->createRedisCache($config);
-                case 'array':
-                    return new Psr16Cache(new ArrayAdapter($this->cacheTtl));
-                case 'null':
-                    return new Psr16Cache(new ArrayAdapter(0)); // No persistence
-                case 'file':
-                default:
-                    return new Psr16Cache(new FilesystemAdapter('dns_cache', $this->cacheTtl));
-            }
-        } catch (\Throwable $e) {
+            return match ($this->cacheDriver) {
+                'redis' => $this->createRedisCache($config),
+                'array' => new Psr16Cache(new ArrayAdapter($this->cacheTtl)),
+                'null' => new Psr16Cache(new ArrayAdapter(0)),
+                default => new Psr16Cache(new FilesystemAdapter('dns_cache', $this->cacheTtl)),
+            };
+        } catch (\Throwable) {
             // Fallback to ArrayAdapter if any driver fails
             return new Psr16Cache(new ArrayAdapter($this->cacheTtl));
         }
@@ -338,11 +333,10 @@ class CachedDnsValidator implements DnsCheckerInterface
         $redisHost = $config['redis_host'] ?? $_ENV['REDIS_HOST'] ?? $_SERVER['REDIS_HOST'] ?? '127.0.0.1';
         $redisPort = $config['redis_port'] ?? $_ENV['REDIS_PORT'] ?? $_SERVER['REDIS_PORT'] ?? 6379;
         $redisPassword = $config['redis_password'] ?? $_ENV['REDIS_PASSWORD'] ?? $_SERVER['REDIS_PASSWORD'] ?? null;
-        $redisDb = $config['redis_db'] ?? $_ENV['REDIS_DB'] ?? $_SERVER['REDIS_DB'] ?? 0;
 
-        $dsn = "redis://{$redisHost}:{$redisPort}";
+        $dsn = sprintf('redis://%s:%s', $redisHost, $redisPort);
         if ($redisPassword) {
-            $dsn = "redis://:{$redisPassword}@{$redisHost}:{$redisPort}";
+            $dsn = sprintf('redis://:%s@%s:%s', $redisPassword, $redisHost, $redisPort);
         }
 
         $redis = RedisAdapter::createConnection($dsn);

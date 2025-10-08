@@ -9,12 +9,10 @@ namespace KalimeroMK\EmailCheck\Scripts;
  */
 class MassValidationMonitor
 {
-    private string $progressFile;
     private bool $isRunning = true;
     
-    public function __construct(string $progressFile)
+    public function __construct(private readonly string $progressFile)
     {
-        $this->progressFile = $progressFile;
     }
     
     /**
@@ -27,8 +25,8 @@ class MassValidationMonitor
         
         // Handle Ctrl+C gracefully
         if (function_exists('pcntl_signal')) {
-            pcntl_signal(SIGINT, [$this, 'handleSignal']);
-            pcntl_signal(SIGTERM, [$this, 'handleSignal']);
+            pcntl_signal(SIGINT, $this->handleSignal(...));
+            pcntl_signal(SIGTERM, $this->handleSignal(...));
         }
         
         $lastUpdate = 0;
@@ -87,7 +85,7 @@ class MassValidationMonitor
         
         // Basic info
         echo "📧 Total emails: " . number_format($progress['total_emails']) . "\n";
-        echo "📦 Current batch: {$progress['current_batch']}/{$progress['total_batches']}\n";
+        echo sprintf('📦 Current batch: %s/%s%s', $progress['current_batch'], $progress['total_batches'], PHP_EOL);
         echo "✅ Valid emails: " . number_format($progress['valid_emails']) . "\n";
         echo "❌ Invalid emails: " . number_format($progress['invalid_emails']) . "\n";
         echo "📈 Progress: {$progress['progress_percentage']}%\n\n";
@@ -97,7 +95,7 @@ class MassValidationMonitor
         
         // Time info
         echo "\n⏱️  Elapsed time: " . $this->formatTime($progress['elapsed_time']) . "\n";
-        echo "⏳ Estimated remaining: {$progress['estimated_remaining']}\n";
+        echo sprintf('⏳ Estimated remaining: %s%s', $progress['estimated_remaining'], PHP_EOL);
         
         // Statistics
         $emailsPerSecond = $progress['processed_emails'] / max($progress['elapsed_time'], 1);
@@ -128,13 +126,15 @@ class MassValidationMonitor
     {
         $hours = floor($seconds / 3600);
         $minutes = floor(($seconds % 3600) / 60);
-        $seconds = $seconds % 60;
-        
+        $seconds %= 60;
         if ($hours > 0) {
             return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
-        } elseif ($minutes > 0) {
+        }
+        
+        if ($minutes > 0) {
             return sprintf('%02d:%02d', $minutes, $seconds);
-        } else {
+        }
+        else {
             return sprintf('%02d seconds', $seconds);
         }
     }
@@ -173,7 +173,7 @@ class MassValidationMonitor
 }
 
 // CLI usage
-if (php_sapi_name() === 'cli') {
+if (PHP_SAPI === 'cli') {
     echo "Mass Validation Monitor\n";
     echo "======================\n\n";
     

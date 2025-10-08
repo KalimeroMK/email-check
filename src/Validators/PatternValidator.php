@@ -5,10 +5,61 @@ namespace KalimeroMK\EmailCheck\Validators;
 class PatternValidator
 {
     /** @var array<string> */
-    private array $invalidPatterns;
+    private array $invalidPatterns = [
+        // No @ symbol
+        '/^[^@]*$/',
+        
+        // Multiple @ symbols
+        '/@.*@/',
+        
+        // Multiple consecutive dots
+        '/\.{2,}/',
+        
+        // Starts or ends with dot
+        '/^\.|\.@|@\.|\.$/',
+
+        // Starts or ends with @
+        '/^@|@$/',
+        
+        // Empty local part
+        '/^@/',
+        
+        // Empty domain part
+        '/@$/',
+        
+        // Spaces in email
+        '/\s/',
+        
+        // Invalid characters
+        '/[<>"\[\]\\\\]/',
+        
+        // Too many dots in domain
+        '/\.{3,}/',
+        
+        // Domain with only numbers
+        '/@\d+$/',
+        
+        // Local part with only dots
+        '/^\.+$/',
+        
+        // Domain with only dots
+        '/@\.+$/',
+        
+        // Invalid TLD patterns
+        '/@.*\.\d+$/',  // TLD with numbers
+        
+        // Too long local part (over 64 chars)
+        '/^.{65,}@/',
+        
+        // Too long domain part (over 253 chars)
+        '/@.{254,}$/',
+        
+        // Too long overall (over 254 chars)
+        '/^.{255,}$/',
+    ];
 
     /** @var array<string> */
-    private array $strictPatterns;
+    private readonly array $strictPatterns;
 
     /** @var array<string, string> */
     private array $patternDescriptions = [];
@@ -21,60 +72,6 @@ class PatternValidator
     {
         $this->enablePatternFiltering = $config['enable_pattern_filtering'] ?? true;
         $this->strictMode = $config['pattern_strict_mode'] ?? false;
-
-        // Basic invalid patterns (fast rejection)
-        $this->invalidPatterns = [
-            // No @ symbol
-            '/^[^@]*$/',
-            
-            // Multiple @ symbols
-            '/@.*@/',
-            
-            // Multiple consecutive dots
-            '/\.{2,}/',
-            
-            // Starts or ends with dot
-            '/^\.|\.@|@\.|\.$/',
-
-            // Starts or ends with @
-            '/^@|@$/',
-            
-            // Empty local part
-            '/^@/',
-            
-            // Empty domain part
-            '/@$/',
-            
-            // Spaces in email
-            '/\s/',
-            
-            // Invalid characters
-            '/[<>"\[\]\\\\]/',
-            
-            // Too many dots in domain
-            '/\.{3,}/',
-            
-            // Domain with only numbers
-            '/@\d+$/',
-            
-            // Local part with only dots
-            '/^\.+$/',
-            
-            // Domain with only dots
-            '/@\.+$/',
-            
-            // Invalid TLD patterns
-            '/@.*\.\d+$/',  // TLD with numbers
-            
-            // Too long local part (over 64 chars)
-            '/^.{65,}@/',
-            
-            // Too long domain part (over 253 chars)
-            '/@.{254,}$/',
-            
-            // Too long overall (over 254 chars)
-            '/^.{255,}$/',
-        ];
 
         // Strict patterns (additional validation)
         $this->strictPatterns = [
@@ -251,23 +248,20 @@ class PatternValidator
 
     /**
      * Adds custom invalid pattern
-     * 
+     *
      * @param string $pattern Regex pattern
      * @param string $description Human-readable description
-     * @return void
      */
     public function addCustomPattern(string $pattern, string $description = ''): void
     {
         $this->invalidPatterns[] = $pattern;
-        if ($description) {
+        if ($description !== '' && $description !== '0') {
             $this->patternDescriptions[$pattern] = $description;
         }
     }
 
     /**
      * Checks if pattern filtering is enabled
-     * 
-     * @return bool
      */
     public function isEnabled(): bool
     {
@@ -276,8 +270,6 @@ class PatternValidator
 
     /**
      * Checks if strict mode is enabled
-     * 
-     * @return bool
      */
     public function isStrictMode(): bool
     {

@@ -22,7 +22,7 @@ $phpCode = "<?php\n\nreturn " . var_export($domainsArray, true) . ";\n";
 $result = file_put_contents($destinationFile, $phpCode);
 
 if ($result === false) {
-    die("Failed to write to file: $destinationFile\n");
+    die(sprintf('Failed to write to file: %s%s', $destinationFile, PHP_EOL));
 }
 
 echo "Successfully updated list with " . count($domainsArray) . " domains.\n";

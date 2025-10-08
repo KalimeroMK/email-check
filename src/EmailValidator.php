@@ -254,6 +254,7 @@ class EmailValidator
                     $result['errors'][] = 'Disposable email address not allowed';
                     return $result;
                 }
+
                 $result['warnings'][] = 'Disposable email address detected';
             }
         }
@@ -660,8 +661,6 @@ class EmailValidator
 
     /**
      * Checks if database is configured as data source
-     * 
-     * @return bool
      */
     public function useDatabase(): bool
     {
@@ -670,8 +669,6 @@ class EmailValidator
 
     /**
      * Checks if JSON file is configured as data source
-     * 
-     * @return bool
      */
     public function useJsonFile(): bool
     {
@@ -680,8 +677,6 @@ class EmailValidator
 
     /**
      * Gets the JSON file path for data source
-     * 
-     * @return string
      */
     public function getJsonFilePath(): string
     {
@@ -700,10 +695,9 @@ class EmailValidator
 
     /**
      * Gets a configuration value
-     * 
+     *
      * @param string $key Configuration key
      * @param mixed $default Default value
-     * @return mixed
      */
     public function getConfig(string $key, mixed $default = null): mixed
     {
@@ -722,8 +716,6 @@ class EmailValidator
 
     /**
      * Gets PatternValidator instance
-     * 
-     * @return PatternValidator
      */
     public function getPatternValidator(): PatternValidator
     {

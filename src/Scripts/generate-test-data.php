@@ -107,9 +107,9 @@ class TestDataGenerator
         // Add some variations
         $variations = [
             $name,
-            $name . rand(1, 999),
+            $name . random_int(1, 999),
             $name . '.' . $this->commonSurnames[array_rand($this->commonSurnames)],
-            $name . '_' . rand(1, 99),
+            $name . '_' . random_int(1, 99),
         ];
         
         $localPart = $variations[array_rand($variations)];
@@ -154,9 +154,9 @@ class TestDataGenerator
         
         $variations = [
             $name,
-            $name . rand(1, 999),
-            'temp' . rand(1, 999),
-            'test' . rand(1, 999),
+            $name . random_int(1, 999),
+            'temp' . random_int(1, 999),
+            'test' . random_int(1, 999),
         ];
         
         $localPart = $variations[array_rand($variations)];
@@ -194,7 +194,7 @@ class TestDataGenerator
         
         $fileSize = filesize($filename);
         if ($fileSize !== false) {
-            echo "✅ Saved " . number_format(count($emails)) . " emails to {$filename}\n";
+            echo "✅ Saved " . number_format(count($emails)) . sprintf(' emails to %s%s', $filename, PHP_EOL);
             echo "📁 File size: " . $this->formatBytes($fileSize) . "\n";
         }
     }
@@ -217,7 +217,7 @@ class TestDataGenerator
 }
 
 // CLI usage
-if (php_sapi_name() === 'cli') {
+if (PHP_SAPI === 'cli') {
     echo "Test Data Generator for Mass Email Validation\n";
     echo "==============================================\n\n";
     
@@ -250,5 +250,5 @@ if (php_sapi_name() === 'cli') {
     
     echo "\n🎉 Test data generation completed!\n";
     echo "📧 You can now use this file with the mass email validator:\n";
-    echo "   php mass-email-validator.php {$outputFile}\n";
+    echo sprintf('   php mass-email-validator.php %s%s', $outputFile, PHP_EOL);
 }

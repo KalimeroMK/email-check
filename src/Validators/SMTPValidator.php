@@ -245,6 +245,7 @@ class SMTPValidator
                         str_contains($response, 'Invalid recipient')) {
                         return 'mailbox_not_found';
                     }
+
                     return 'server_error';
                     
                 case 551:
@@ -265,11 +266,14 @@ class SMTPValidator
                 default:
                     if ($statusCode >= 200 && $statusCode < 300) {
                         return 'success';
-                    } elseif ($statusCode >= 400 && $statusCode < 500) {
-                        return 'server_error';
-                    } elseif ($statusCode >= 500 && $statusCode < 600) {
+                    }
+                    if ($statusCode >= 400 && $statusCode < 500) {
                         return 'server_error';
                     }
+                    if ($statusCode >= 500 && $statusCode < 600) {
+                        return 'server_error';
+                    }
+
                     break;
             }
         }

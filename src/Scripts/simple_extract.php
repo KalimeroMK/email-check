@@ -34,7 +34,7 @@ $invalidEmails = [];
 $startTime = time();
 
 echo "⚙️  Configuration:\n";
-echo "   Batch size: {$batchSize}\n";
+echo sprintf('   Batch size: %d%s', $batchSize, PHP_EOL);
 echo "   Total batches: {$maxBatches}\n\n";
 
 for ($batch = 0; $batch < $maxBatches; $batch++) {
@@ -112,7 +112,7 @@ $totalTime = time() - $startTime;
 $totalMinutes = round($totalTime / 60, 1);
 
 echo "🎉 === EXTRACTION COMPLETED ===\n";
-echo "📊 Total emails processed: {$totalProcessed}\n";
+echo sprintf('📊 Total emails processed: %d%s', $totalProcessed, PHP_EOL);
 echo "✅ Total valid emails: " . count($validEmails) . "\n";
 echo "❌ Total invalid emails: " . count($invalidEmails) . "\n";
 echo "⏱️  Total time: {$totalMinutes} minutes\n\n";
@@ -121,25 +121,25 @@ echo "⏱️  Total time: {$totalMinutes} minutes\n\n";
 $timestamp = date('Y-m-d_H-i-s');
 
 // Save valid emails to JSON
-if (!empty($validEmails)) {
-    $validFile = "valid_emails_{$timestamp}.json";
+if ($validEmails !== []) {
+    $validFile = sprintf('valid_emails_%s.json', $timestamp);
     file_put_contents($validFile, json_encode($validEmails, JSON_PRETTY_PRINT));
-    echo "✅ Valid emails saved to: {$validFile}\n";
+    echo sprintf('✅ Valid emails saved to: %s%s', $validFile, PHP_EOL);
 } else {
     echo "ℹ️  No valid emails to save.\n";
 }
 
 // Save invalid emails to JSON
-if (!empty($invalidEmails)) {
-    $invalidFile = "invalid_emails_{$timestamp}.json";
+if ($invalidEmails !== []) {
+    $invalidFile = sprintf('invalid_emails_%s.json', $timestamp);
     file_put_contents($invalidFile, json_encode($invalidEmails, JSON_PRETTY_PRINT));
-    echo "❌ Invalid emails saved to: {$invalidFile}\n";
+    echo sprintf('❌ Invalid emails saved to: %s%s', $invalidFile, PHP_EOL);
 } else {
     echo "ℹ️  No invalid emails to save.\n";
 }
 
 // Save final statistics
-$statsFile = "stats_{$timestamp}.json";
+$statsFile = sprintf('stats_%s.json', $timestamp);
 file_put_contents($statsFile, json_encode([
     'total_processed' => $totalProcessed,
     'valid_count' => count($validEmails),
@@ -150,6 +150,6 @@ file_put_contents($statsFile, json_encode([
     'emails_per_minute' => round($totalProcessed / $totalMinutes, 1),
     'timestamp' => date('Y-m-d H:i:s')
 ], JSON_PRETTY_PRINT));
-echo "📊 Statistics saved to: {$statsFile}\n";
+echo sprintf('📊 Statistics saved to: %s%s', $statsFile, PHP_EOL);
 
 echo "\n✨ Email extraction completed successfully!\n";

@@ -20,11 +20,11 @@ echo "🚀 Starting JSON file email validation...\n\n";
 // Check if file exists
 $jsonFile = '/Users/zoran/Downloads/Email.json';
 if (!file_exists($jsonFile)) {
-    echo "❌ Error: File not found: {$jsonFile}\n";
+    echo sprintf('❌ Error: File not found: %s%s', $jsonFile, PHP_EOL);
     exit(1);
 }
 
-echo "📁 Reading file: {$jsonFile}\n";
+echo sprintf('📁 Reading file: %s%s', $jsonFile, PHP_EOL);
 
 // Read JSON file
 $content = file_get_contents($jsonFile);
@@ -54,7 +54,7 @@ $invalidEmails = [];
 $startTime = time();
 
 echo "⚙️  Configuration:\n";
-echo "   Batch size: {$batchSize}\n";
+echo sprintf('   Batch size: %d%s', $batchSize, PHP_EOL);
 echo "   Total batches: {$maxBatches}\n\n";
 
 for ($batch = 0; $batch < $maxBatches; $batch++) {
@@ -71,9 +71,7 @@ for ($batch = 0; $batch < $maxBatches; $batch++) {
     }
 
     // Extract email addresses from objects
-    $batchEmails = array_map(function($item) {
-        return is_array($item) && isset($item['email']) ? $item['email'] : $item;
-    }, $batchData);
+    $batchEmails = array_map(fn($item) => is_array($item) && isset($item['email']) ? $item['email'] : $item, $batchData);
 
     echo "   📧 Processing {$count} emails...\n";
 
@@ -111,7 +109,7 @@ $totalTime = time() - $startTime;
 $totalMinutes = round($totalTime / 60, 1);
 
 echo "🎉 === VALIDATION COMPLETED ===\n";
-echo "📊 Total emails processed: {$totalEmails}\n";
+echo sprintf('📊 Total emails processed: %d%s', $totalEmails, PHP_EOL);
 echo "✅ Total valid emails: " . count($validEmails) . "\n";
 echo "❌ Total invalid emails: " . count($invalidEmails) . "\n";
 echo "⏱️  Total time: {$totalMinutes} minutes\n\n";
@@ -120,25 +118,25 @@ echo "⏱️  Total time: {$totalMinutes} minutes\n\n";
 $timestamp = date('Y-m-d_H-i-s');
 
 // Save valid emails to JSON
-if (!empty($validEmails)) {
-    $validFile = "valid_emails_from_json_{$timestamp}.json";
+if ($validEmails !== []) {
+    $validFile = sprintf('valid_emails_from_json_%s.json', $timestamp);
     file_put_contents($validFile, json_encode($validEmails, JSON_PRETTY_PRINT));
-    echo "✅ Valid emails saved to: {$validFile}\n";
+    echo sprintf('✅ Valid emails saved to: %s%s', $validFile, PHP_EOL);
 } else {
     echo "ℹ️  No valid emails to save.\n";
 }
 
 // Save invalid emails to JSON
-if (!empty($invalidEmails)) {
-    $invalidFile = "invalid_emails_from_json_{$timestamp}.json";
+if ($invalidEmails !== []) {
+    $invalidFile = sprintf('invalid_emails_from_json_%s.json', $timestamp);
     file_put_contents($invalidFile, json_encode($invalidEmails, JSON_PRETTY_PRINT));
-    echo "❌ Invalid emails saved to: {$invalidFile}\n";
+    echo sprintf('❌ Invalid emails saved to: %s%s', $invalidFile, PHP_EOL);
 } else {
     echo "ℹ️  No invalid emails to save.\n";
 }
 
 // Save final statistics
-$statsFile = "stats_from_json_{$timestamp}.json";
+$statsFile = sprintf('stats_from_json_%s.json', $timestamp);
 file_put_contents($statsFile, json_encode([
     'total_processed' => $totalEmails,
     'valid_count' => count($validEmails),
@@ -149,6 +147,6 @@ file_put_contents($statsFile, json_encode([
     'emails_per_minute' => round($totalEmails / $totalMinutes, 1),
     'timestamp' => date('Y-m-d H:i:s')
 ], JSON_PRETTY_PRINT));
-echo "📊 Statistics saved to: {$statsFile}\n";
+echo sprintf('📊 Statistics saved to: %s%s', $statsFile, PHP_EOL);
 
 echo "\n✨ JSON file validation completed successfully!\n";
