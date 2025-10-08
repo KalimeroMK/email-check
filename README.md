@@ -1,4 +1,7 @@
-# PHP Email Check 📧
+<div align="center">
+  <img src="logo.png" alt="PHP Email Check Logo" width="200" height="200">
+  <h1>PHP Email Check 📧</h1>
+</div>
 
 [![Latest Stable Version](https://img.shields.io/packagist/v/kalimeromk/email-check.svg)](https://packagist.org/packages/kalimeromk/email-check)
 [![License](https://img.shields.io/packagist/l/kalimeromk/email-check.svg)](https://packagist.org/packages/kalimeromk/email-check/)
