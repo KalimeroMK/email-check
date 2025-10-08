@@ -262,7 +262,12 @@ class DisposableEmailUpdater
             return 0;
         }
         
-        $data = json_decode(file_get_contents(self::OUTPUT_FILE), true);
+        $content = file_get_contents(self::OUTPUT_FILE);
+        if ($content === false) {
+            return 0;
+        }
+        
+        $data = json_decode($content, true);
         return $data['metadata']['total_domains'] ?? 0;
     }
 
@@ -275,7 +280,12 @@ class DisposableEmailUpdater
             return null;
         }
         
-        $data = json_decode(file_get_contents(self::OUTPUT_FILE), true);
+        $content = file_get_contents(self::OUTPUT_FILE);
+        if ($content === false) {
+            return null;
+        }
+        
+        $data = json_decode($content, true);
         return $data['metadata']['updated_at'] ?? null;
     }
 

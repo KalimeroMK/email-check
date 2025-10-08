@@ -193,8 +193,10 @@ class TestDataGenerator
         file_put_contents($filename, $json);
         
         $fileSize = filesize($filename);
-        echo "✅ Saved " . number_format(count($emails)) . " emails to {$filename}\n";
-        echo "📁 File size: " . $this->formatBytes($fileSize) . "\n";
+        if ($fileSize !== false) {
+            echo "✅ Saved " . number_format(count($emails)) . " emails to {$filename}\n";
+            echo "📁 File size: " . $this->formatBytes($fileSize) . "\n";
+        }
     }
     
     /**

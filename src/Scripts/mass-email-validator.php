@@ -43,7 +43,6 @@ class MassEmailValidator
     private int $batchSize = 2000; // Larger batches for better throughput
     private int $maxProcesses = 4; // Will be auto-detected
     private int $memoryLimit = 256 * 1024 * 1024; // 256MB per process for larger batches
-    private int $maxExecutionTime = 3600; // 1 hour per batch
     private bool $enableSMTP = false; // Disable SMTP for speed
     private bool $enablePatternFiltering = true; // Enable fast pattern filtering
     private bool $aggressiveMode = false; // Ultra-fast mode for massive datasets
@@ -257,9 +256,14 @@ class MassEmailValidator
         $tempFile = $this->outputDir . "/temp/batch_{$batchNumber}.json";
         
         if (file_exists($tempFile)) {
-            $data = json_decode(file_get_contents($tempFile), true);
+            $content = file_get_contents($tempFile);
+            if ($content === false) {
+                return;
+            }
             
-            if ($data) {
+            $data = json_decode($content, true);
+            
+            if ($data !== null) {
                 $this->processedEmails += $data['total_emails'];
                 $this->validEmails += $data['valid_count'];
                 $this->invalidEmails += $data['invalid_count'];
@@ -269,7 +273,7 @@ class MassEmailValidator
                 $this->invalidEmailsList = array_merge($this->invalidEmailsList, $data['invalid_emails']);
                 
                 // Save progress
-                $this->saveProgress($batchNumber, ceil($this->totalEmails / $this->batchSize));
+                $this->saveProgress($batchNumber, (int) ceil($this->totalEmails / $this->batchSize));
                 
                 // Clean up temp file
                 unlink($tempFile);
@@ -467,7 +471,7 @@ class MassEmailValidator
         // Method 2: sysctl (macOS/BSD)
         if (function_exists('shell_exec')) {
             $result = shell_exec('sysctl -n hw.ncpu 2>/dev/null');
-            if ($result !== null) {
+            if ($result !== null && $result !== '') {
                 $cores = (int) trim($result);
                 if ($cores > 0) {
                     return $cores;
@@ -478,7 +482,7 @@ class MassEmailValidator
         // Method 3: nproc command
         if (function_exists('shell_exec')) {
             $result = shell_exec('nproc 2>/dev/null');
-            if ($result !== null) {
+            if ($result !== null && $result !== '') {
                 $cores = (int) trim($result);
                 if ($cores > 0) {
                     return $cores;
@@ -490,7 +494,7 @@ class MassEmailValidator
         if (function_exists('sys_getloadavg')) {
             // This doesn't give core count directly, but we can estimate
             $load = sys_getloadavg();
-            if ($load[0] > 0) {
+            if ($load !== false && isset($load[0]) && $load[0] > 0) {
                 // Estimate based on load average (not very accurate)
                 $cores = max(1, (int) ($load[0] * 2));
             }
@@ -604,7 +608,7 @@ class MassEmailValidator
     /**
      * Format time in seconds to human readable format
      */
-    private function formatTime(int $seconds): string
+    private function formatTime(float $seconds): string
     {
         $hours = floor($seconds / 3600);
         $minutes = floor(($seconds % 3600) / 60);
@@ -691,7 +695,7 @@ if (php_sapi_name() === 'cli') {
                     $options['max_processes'] = (int) $value;
                     break;
                 case 'memory-limit':
-                    $options['memory_limit'] = parseMemoryLimit($value);
+                    $options['memory_limit'] = parseMemoryLimit((string) $value);
                     break;
                 case 'enable-smtp':
                     $options['enable_smtp'] = true;
@@ -713,8 +717,14 @@ if (php_sapi_name() === 'cli') {
     }
     
     echo "📧 Loading emails from {$inputFile}...\n";
-    $emailsData = json_decode(file_get_contents($inputFile), true);
-    if (!$emailsData) {
+    $content = file_get_contents($inputFile);
+    if ($content === false) {
+        echo "❌ Error: Could not read input file.\n";
+        exit(1);
+    }
+    
+    $emailsData = json_decode($content, true);
+    if ($emailsData === null) {
         echo "❌ Error: Invalid JSON file.\n";
         exit(1);
     }
