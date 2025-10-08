@@ -46,8 +46,28 @@ progress.json
 validation.log
 
 # Environment files
-.env# Email lists - DO NOT COMMIT
+.env
+.env.local
+.env.production
+
+# Email lists and validation data - DO NOT COMMIT
 iwinback_bdka4_check_emails.json
 test_sample.json
 test_emails_*.json
-*.json
+test_emails_10k.json
+test_sample_10k.json
+
+# Data directory - generated files
+src/data/
+src/Data/
+data/
+Data/
+
+# Validation results
+mass_validation_*/
+valid_emails*.json
+invalid_emails*.json
+statistics*.json
+progress*.json
+server_*.json
+stats*.json
