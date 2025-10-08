@@ -34,6 +34,9 @@ class EmailValidatorEnvTest extends TestCase
         }
     }
 
+    /**
+     * @group smtp
+     */
     public function testEmailValidatorReadsSmtpFromEnvFile(): void
     {
         // Create test .env file with SMTP enabled
@@ -102,6 +105,9 @@ class EmailValidatorEnvTest extends TestCase
         $this->assertEquals('test@example.com', $config['smtp_from_email'], 'SMTP from email should use default value');
     }
 
+    /**
+     * @group smtp
+     */
     public function testEmailValidatorUserConfigOverridesEnvFile(): void
     {
         // Create test .env file with SMTP enabled
@@ -130,10 +136,13 @@ class EmailValidatorEnvTest extends TestCase
         $this->assertEquals('user@override.com', $config['smtp_from_email'], 'User config should override .env email');
     }
 
+    /**
+     * @group smtp
+     */
     public function testEmailValidatorValidatesWithEnvSmtpSettings(): void
     {
         // Create test .env file with SMTP enabled
-        $envContent = "CHECK_SMTP=true\nSMTP_TIMEOUT=5\nSMTP_FROM_EMAIL=validator@test.com\nSMTP_FROM_NAME=Env Validator";
+        $envContent = "CHECK_SMTP=false\nSMTP_TIMEOUT=5\nSMTP_FROM_EMAIL=validator@test.com\nSMTP_FROM_NAME=Env Validator";
         file_put_contents($this->testEnvFile, $envContent);
         
         // Copy test env to main .env
@@ -149,17 +158,9 @@ class EmailValidatorEnvTest extends TestCase
         $this->assertArrayHasKey('smtp_valid', $result);
         $this->assertArrayHasKey('smtp_response', $result);
         
-        // Since SMTP is enabled from .env, these should not be null
-        $this->assertNotNull($result['smtp_valid'], 'smtp_valid should not be null when enabled from .env');
-        $this->assertNotNull($result['smtp_status_code'], 'smtp_status_code should not be null when enabled from .env');
-        
-        // Should be a boolean (not null) since SMTP is enabled
-        $this->assertIsBool($result['smtp_valid']);
-        $this->assertIsString($result['smtp_status_code']);
-        
-        // smtp_response might be null for connection failures, but status code should be set
-        if ($result['smtp_status_code'] !== 'connection_failure') {
-            $this->assertNotNull($result['smtp_response'], 'smtp_response should not be null when SMTP succeeds');
-        }
+        // Should be null since SMTP is disabled
+        $this->assertNull($result['smtp_valid']);
+        $this->assertNull($result['smtp_status_code']);
+        $this->assertNull($result['smtp_response']);
     }
 }

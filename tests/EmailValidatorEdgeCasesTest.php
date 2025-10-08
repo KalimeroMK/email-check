@@ -38,7 +38,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertFalse($result['is_valid']);
-        $this->assertContains('Invalid email format', $result['errors']);
+        $this->assertContains('Email matches invalid pattern: Multiple @ symbols', $result['errors']);
     }
 
     public function testValidateEmailWithLeadingDot(): void
@@ -49,7 +49,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertFalse($result['is_valid']);
-        $this->assertContains('Invalid email format', $result['errors']);
+        $this->assertContains('Email matches invalid pattern: Starts or ends with dot', $result['errors']);
     }
 
     public function testValidateEmailWithTrailingDot(): void
@@ -60,7 +60,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertFalse($result['is_valid']);
-        $this->assertContains('Invalid email format', $result['errors']);
+        $this->assertContains('Email matches invalid pattern: Starts or ends with dot', $result['errors']);
     }
 
     public function testValidateEmailWithConsecutiveDots(): void
@@ -71,7 +71,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertFalse($result['is_valid']);
-        $this->assertContains('Invalid email format', $result['errors']);
+        $this->assertContains('Email matches invalid pattern: Multiple consecutive dots', $result['errors']);
     }
 
     public function testValidateEmailWithEmptyLocalPart(): void
@@ -82,7 +82,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertFalse($result['is_valid']);
-        $this->assertContains('Invalid email format', $result['errors']);
+        $this->assertContains('Email matches invalid pattern: Starts or ends with @', $result['errors']);
     }
 
     public function testValidateEmailWithEmptyDomain(): void
@@ -93,7 +93,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertFalse($result['is_valid']);
-        $this->assertContains('Invalid email format', $result['errors']);
+        $this->assertContains('Email matches invalid pattern: Starts or ends with @', $result['errors']);
     }
 
     public function testValidateEmailWithOnlyAtSymbol(): void
@@ -104,7 +104,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertFalse($result['is_valid']);
-        $this->assertContains('Invalid email format', $result['errors']);
+        $this->assertContains('Email matches invalid pattern: Starts or ends with @', $result['errors']);
     }
 
     public function testValidateEmailWithSpaces(): void
@@ -115,7 +115,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertFalse($result['is_valid']);
-        $this->assertContains('Invalid email format', $result['errors']);
+        $this->assertContains('Email matches invalid pattern: Contains spaces', $result['errors']);
     }
 
     public function testValidateEmailWithSpecialCharactersInDomain(): void
@@ -159,7 +159,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertFalse($result['is_valid']);
-        $this->assertContains('Invalid email format', $result['errors']);
+        $this->assertContains('Email matches invalid pattern: Multiple consecutive dots', $result['errors']);
     }
 
     public function testValidateEmailWithValidSubdomain(): void
@@ -192,7 +192,7 @@ class EmailValidatorEdgeCasesTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertFalse($result['is_valid']);
-        $this->assertContains('Invalid email format', $result['errors']);
+        $this->assertContains('Email matches invalid pattern: Domain part too long (over 253 chars)', $result['errors']);
     }
 
     public function testValidateEmailWithNumbersInLocalPart(): void

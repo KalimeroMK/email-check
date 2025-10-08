@@ -5,6 +5,9 @@ namespace KalimeroMK\EmailCheck\Tests;
 use KalimeroMK\EmailCheck\Validators\SMTPValidator;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @group smtp
+ */
 class SMTPValidatorStatusCodesTest extends TestCase
 {
     private SMTPValidator $validator;
@@ -15,6 +18,7 @@ class SMTPValidatorStatusCodesTest extends TestCase
             'timeout' => 1, // Short timeout for testing
             'from_email' => 'test@example.com',
             'from_name' => 'Test Validator',
+            'max_checks' => 1, // Limit checks to avoid real network calls
         ]);
     }
 

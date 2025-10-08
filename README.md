@@ -69,10 +69,160 @@ The `validate()` method returns an associative array with the following keys:
 | `is_valid`         | bool         | `true` if the email passes all key validations (format and domain).                       |
 | `domain_valid`     | bool         | `true` if the domain has valid MX or A DNS records.                                       |
 | `is_disposable`    | bool         | `true` if the email is from a known disposable service.                                   |
+| `pattern_valid`    | bool         | `true` if email passes pattern filtering (fast rejection).                                |
+| `pattern_status`   | string       | Pattern validation status: `passed`, `rejected`, or `warning`.                            |
+| `matched_pattern`  | string\|null | Regex pattern that matched (if rejected), `null` if passed.                               |
 | `smtp_valid`       | bool\|null   | `true` if SMTP validation confirms mailbox exists, `false` if failed, `null` if disabled. |
 | `smtp_response`    | string\|null | SMTP server response (if SMTP validation enabled), `null` if disabled.                    |
 | `smtp_status_code` | string\|null | Detailed SMTP status code (if SMTP validation enabled), `null` if disabled.               |
 | `timestamp`        | string       | When the validation was performed.                                                        |
+
+### Advanced Usage: Pattern Filtering (Fast Rejection)
+
+Pattern filtering provides ultra-fast rejection of obviously invalid emails before expensive DNS/SMTP checks:
+
+```php
+$validator = new EmailValidator([
+    'enable_pattern_filtering' => true,
+    'pattern_strict_mode' => false,
+]);
+
+$result = $validator->validate('invalid-email');
+
+if ($result['pattern_status'] === 'rejected') {
+    echo "Email rejected by pattern: " . $result['matched_pattern'];
+    echo "Reason: " . $result['errors'][0];
+}
+```
+
+**Pattern Status Values:**
+
+- `passed` - Email passed all pattern checks
+- `rejected` - Email matched an invalid pattern (fast rejection)
+- `warning` - Email matched a strict pattern (if strict mode enabled)
+
+**Common Invalid Patterns Detected:**
+
+- Missing @ symbol
+- Multiple @ symbols
+- Multiple consecutive dots
+- Starts/ends with dots or @
+- Contains spaces or invalid characters
+- Empty local/domain parts
+- Emails that are too long
+
+**Bulk Validation with Pattern Filtering:**
+
+```php
+$emails = [
+    'valid@example.com',
+    'invalid-email',
+    'user@domain.com',
+    'test@@example.com',
+];
+
+$result = $validator->validateBulk($emails);
+
+echo "Total: " . $result['stats']['total'];
+echo "Valid: " . $result['stats']['valid'];
+echo "Pattern Rejected: " . $result['stats']['pattern_rejected'];
+```
+
+### Advanced Usage: DNS Cache Configuration
+
+The `CachedDnsValidator` provides advanced caching capabilities with multiple drivers and telemetry monitoring:
+
+#### Cache Drivers
+
+**File Cache (Default):**
+
+```php
+$validator = new EmailValidator([
+    'dns_cache_driver' => 'file',
+    'dns_cache_ttl' => 3600, // 1 hour
+]);
+```
+
+**Redis Cache:**
+
+```php
+$validator = new EmailValidator([
+    'dns_cache_driver' => 'redis',
+    'dns_cache_ttl' => 7200, // 2 hours
+    'redis_host' => '127.0.0.1',
+    'redis_port' => 6379,
+    'redis_password' => 'your_password',
+    'redis_db' => 0,
+]);
+```
+
+**Array Cache (In-Memory):**
+
+```php
+$validator = new EmailValidator([
+    'dns_cache_driver' => 'array',
+    'dns_cache_ttl' => 1800, // 30 minutes
+]);
+```
+
+**No Cache:**
+
+```php
+$validator = new EmailValidator([
+    'dns_cache_driver' => 'null',
+]);
+```
+
+#### Cache Telemetry Monitoring
+
+Monitor cache performance with built-in telemetry:
+
+```php
+use KalimeroMK\EmailCheck\Validators\CachedDnsValidator;
+
+$cachedValidator = new CachedDnsValidator();
+
+// Perform some validations
+$cachedValidator->validateDomain('example.com');
+$cachedValidator->validateDomain('google.com');
+$cachedValidator->validateDomain('example.com'); // This should be a cache hit
+
+// Get telemetry data
+$telemetry = $cachedValidator->getTelemetry();
+
+echo "Cache Hit Rate: " . $telemetry['hit_rate'] . "%\n";
+echo "Total Requests: " . $telemetry['total_requests'] . "\n";
+echo "Cache Hits: " . $telemetry['hits'] . "\n";
+echo "Cache Misses: " . $telemetry['misses'] . "\n";
+echo "Cache Errors: " . $telemetry['errors'] . "\n";
+
+// Get detailed cache statistics
+$stats = $cachedValidator->getCacheStats();
+print_r($stats);
+```
+
+**Cache Statistics Include:**
+
+- `cache_driver` - The cache driver being used
+- `cache_ttl` - Cache TTL in seconds
+- `telemetry` - Hit/miss/error counts
+- `hit_rate` - Cache hit rate percentage
+- `cache_type` - Type of cache (persistent)
+
+#### Automatic Fallback
+
+The cache system includes automatic fallback mechanisms:
+
+- **Invalid Driver Fallback:** If an invalid cache driver is specified, it automatically falls back to `array` cache
+- **Exception Fallback:** If any cache driver fails to initialize (e.g., Redis connection fails), it falls back to `ArrayAdapter`
+- **Graceful Degradation:** Cache failures don't break validation - the system continues with direct DNS queries
+
+```php
+// Even if Redis is not available, this will work
+$validator = new EmailValidator([
+    'dns_cache_driver' => 'redis', // Will fallback to array if Redis fails
+]);
+```
 
 ### Advanced Usage: "Did You Mean?" Suggestions
 
@@ -127,11 +277,12 @@ The package includes comprehensive test coverage with PHPUnit:
 
 **Test Coverage:**
 
-- **133 tests** with **484 assertions**
+- **150 tests** with **523 assertions**
 - Email validation (basic and edge cases)
 - DNS validation and caching
 - Domain suggestion functionality
 - Disposable email detection
+- Pattern filtering (fast rejection of invalid emails)
 - SMTP validation (enabled/disabled states)
 - SMTP status codes and detailed error analysis
 - Data source configuration (.env file reading)
@@ -178,6 +329,29 @@ LOCAL_SMTP_HOST=localhost
 LOCAL_SMTP_PORT=1025
 FROM_EMAIL=test@example.com
 FROM_NAME=Email Validator
+```
+
+**DNS Cache Configuration:**
+
+```env
+EMAIL_DNS_CACHE_TTL=3600     # Cache TTL in seconds (default: 3600 = 1 hour)
+EMAIL_DNS_CACHE_DRIVER=file  # Cache driver: 'file', 'redis', 'array', 'null' (fallback: 'array')
+```
+
+**Redis Configuration (used when EMAIL_DNS_CACHE_DRIVER=redis):**
+
+```env
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+```
+
+**Pattern Filtering Configuration:**
+
+```env
+ENABLE_PATTERN_FILTERING=true        # Enable fast pattern-based rejection
+PATTERN_STRICT_MODE=false            # Enable strict pattern validation
 ```
 
 **SMTP Validation Settings:**

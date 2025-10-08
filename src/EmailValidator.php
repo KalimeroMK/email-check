@@ -6,6 +6,7 @@ use KalimeroMK\EmailCheck\Interfaces\DnsCheckerInterface;
 use KalimeroMK\EmailCheck\Detectors\DisposableEmailDetector;
 use KalimeroMK\EmailCheck\Validators\DNSValidator;
 use KalimeroMK\EmailCheck\Validators\SMTPValidator;
+use KalimeroMK\EmailCheck\Validators\PatternValidator;
 use KalimeroMK\EmailCheck\Detectors\DomainSuggestion;
 use KalimeroMK\EmailCheck\Data\ConfigManager;
 use Exception;
@@ -18,6 +19,8 @@ class EmailValidator
     private readonly DisposableEmailDetector $disposableDetector;
 
     private readonly SMTPValidator $smtpValidator;
+
+    private readonly PatternValidator $patternValidator;
 
     /** @var array<string, mixed> */
     private array $config;
@@ -47,6 +50,8 @@ class EmailValidator
             'check_disposable' => false,
             'disposable_strict' => true,
             'check_smtp' => false,
+            'enable_pattern_filtering' => true,
+            'pattern_strict_mode' => false,
             'smtp_timeout' => 10,
             'smtp_max_connections' => 3,
             'smtp_max_checks' => 50,
@@ -57,6 +62,7 @@ class EmailValidator
 
         $this->dnsValidator = $dnsValidator ?? new DNSValidator($this->config);
         $this->disposableDetector = new DisposableEmailDetector();
+        $this->patternValidator = new PatternValidator($this->config);
 
         // Initialize SMTP validator with SMTP-specific config
         $smtpConfig = [
@@ -182,6 +188,14 @@ class EmailValidator
             $config['disposable_strict'] = filter_var($env['DISPOSABLE_STRICT'], FILTER_VALIDATE_BOOLEAN);
         }
 
+        if (isset($env['ENABLE_PATTERN_FILTERING'])) {
+            $config['enable_pattern_filtering'] = filter_var($env['ENABLE_PATTERN_FILTERING'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if (isset($env['PATTERN_STRICT_MODE'])) {
+            $config['pattern_strict_mode'] = filter_var($env['PATTERN_STRICT_MODE'], FILTER_VALIDATE_BOOLEAN);
+        }
+
         if (isset($env['VALIDATION_METHOD'])) {
             $config['validation_method'] = $env['VALIDATION_METHOD'];
         }
@@ -204,6 +218,24 @@ class EmailValidator
     public function validate(string $email): array
     {
         $result = $this->createBaseResult($email);
+
+        // 0. Pattern filtering (fast rejection of known invalid patterns)
+        if ($this->config['enable_pattern_filtering']) {
+            $patternResult = $this->patternValidator->validate($email);
+            $result['pattern_valid'] = $patternResult['pattern_valid'];
+            $result['pattern_status'] = $patternResult['pattern_status'];
+            $result['matched_pattern'] = $patternResult['matched_pattern'];
+            
+            if (!$patternResult['pattern_valid']) {
+                $result['errors'] = array_merge($result['errors'], $patternResult['errors']);
+                $result['smtp_status_code'] = 'invalid_format';
+                return $result;
+            }
+            
+            if (!empty($patternResult['warnings'])) {
+                $result['warnings'] = array_merge($result['warnings'], $patternResult['warnings']);
+            }
+        }
 
         // 1. Basic format validation
         if (!$this->isValidFormat($email)) {
@@ -454,6 +486,9 @@ class EmailValidator
             'is_valid' => false,
             'domain_valid' => false,
             'is_disposable' => false,
+            'pattern_valid' => true,
+            'pattern_status' => 'passed',
+            'matched_pattern' => null,
             'smtp_valid' => null,  // Will be set to false if SMTP is enabled, null if disabled
             'errors' => [],
             'warnings' => [],
@@ -683,6 +718,52 @@ class EmailValidator
     public function getAllConfig(): array
     {
         return $this->config;
+    }
+
+    /**
+     * Gets PatternValidator instance
+     * 
+     * @return PatternValidator
+     */
+    public function getPatternValidator(): PatternValidator
+    {
+        return $this->patternValidator;
+    }
+
+    /**
+     * Validates multiple emails with pattern filtering
+     * 
+     * @param array<string> $emails Emails to validate
+     * @return array<string, mixed> Validation results
+     */
+    public function validateBulk(array $emails): array
+    {
+        $results = [];
+        $stats = [
+            'total' => count($emails),
+            'valid' => 0,
+            'invalid' => 0,
+            'pattern_rejected' => 0,
+        ];
+
+        foreach ($emails as $email) {
+            $result = $this->validate($email);
+            $results[$email] = $result;
+
+            if ($result['is_valid']) {
+                $stats['valid']++;
+            } else {
+                $stats['invalid']++;
+                if (isset($result['pattern_status']) && $result['pattern_status'] === 'rejected') {
+                    $stats['pattern_rejected']++;
+                }
+            }
+        }
+
+        return [
+            'results' => $results,
+            'stats' => $stats,
+        ];
     }
 }
 

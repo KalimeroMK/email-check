@@ -22,7 +22,9 @@ class CachedDnsValidatorTest extends TestCase
         $this->cachedValidator = new CachedDnsValidator(
             [],
             $this->mockDnsValidator,
-            $this->mockCache
+            $this->mockCache,
+            3600,
+            'test'
         );
     }
 
@@ -49,6 +51,7 @@ class CachedDnsValidatorTest extends TestCase
 
         $this->assertTrue($result['from_cache']);
         $this->assertEquals($expectedResult['domain'], $result['domain']);
+        $this->assertEquals('test', $result['cache_driver']);
     }
 
     public function testValidateDomainFromDnsValidator(): void
@@ -76,12 +79,13 @@ class CachedDnsValidatorTest extends TestCase
         // Mock cache set
         $this->mockCache->expects($this->once())
             ->method('set')
-            ->with('domain_validation_' . md5($domain), array_merge($expectedResult, ['from_cache' => false]));
+            ->with('domain_validation_' . md5($domain), array_merge($expectedResult, ['from_cache' => false, 'cache_driver' => 'test']));
 
         $result = $this->cachedValidator->validateDomain($domain);
 
         $this->assertEquals($domain, $result['domain']);
         $this->assertFalse($result['from_cache']);
+        $this->assertEquals('test', $result['cache_driver']);
     }
 
     public function testValidateDomainCacheException(): void
@@ -234,6 +238,10 @@ class CachedDnsValidatorTest extends TestCase
         $this->assertArrayHasKey('cache_size', $result);
         $this->assertArrayHasKey('hits', $result);
         $this->assertArrayHasKey('misses', $result);
+        $this->assertArrayHasKey('cache_driver', $result);
+        $this->assertArrayHasKey('cache_ttl', $result);
+        $this->assertArrayHasKey('telemetry', $result);
+        $this->assertArrayHasKey('hit_rate', $result);
     }
 
     public function testDomainNormalization(): void
@@ -293,5 +301,121 @@ class CachedDnsValidatorTest extends TestCase
         $result = $validator->validateDomain('google.com');
         $this->assertIsArray($result);
         $this->assertArrayHasKey('domain', $result);
+    }
+
+    public function testTelemetryTracking(): void
+    {
+        $domain = 'example.com';
+        $expectedResult = ['domain' => $domain, 'has_mx' => true];
+
+        // First call - cache miss
+        $this->mockCache->expects($this->exactly(2))
+            ->method('get')
+            ->willReturn(null);
+
+        $this->mockDnsValidator->expects($this->exactly(2))
+            ->method('validateDomain')
+            ->willReturn($expectedResult);
+
+        $this->mockCache->expects($this->exactly(2))
+            ->method('set');
+
+        // First call - should be miss
+        $this->cachedValidator->validateDomain($domain);
+        
+        // Second call - should be miss again (since we're mocking cache miss)
+        $this->cachedValidator->validateDomain($domain);
+
+        $telemetry = $this->cachedValidator->getTelemetry();
+        
+        $this->assertArrayHasKey('hits', $telemetry);
+        $this->assertArrayHasKey('misses', $telemetry);
+        $this->assertArrayHasKey('errors', $telemetry);
+        $this->assertArrayHasKey('hit_rate', $telemetry);
+        $this->assertArrayHasKey('total_requests', $telemetry);
+        
+        $this->assertEquals(0, $telemetry['hits']);
+        $this->assertEquals(2, $telemetry['misses']);
+        $this->assertEquals(0.0, $telemetry['hit_rate']);
+    }
+
+    public function testTelemetryReset(): void
+    {
+        $domain = 'example.com';
+        $expectedResult = ['domain' => $domain, 'has_mx' => true];
+
+        // Make some calls to generate telemetry
+        $this->mockCache->expects($this->once())
+            ->method('get')
+            ->willReturn(null);
+
+        $this->mockDnsValidator->expects($this->once())
+            ->method('validateDomain')
+            ->willReturn($expectedResult);
+
+        $this->mockCache->expects($this->once())
+            ->method('set');
+
+        $this->cachedValidator->validateDomain($domain);
+
+        // Reset telemetry
+        $this->cachedValidator->resetTelemetry();
+
+        $telemetry = $this->cachedValidator->getTelemetry();
+        
+        $this->assertEquals(0, $telemetry['hits']);
+        $this->assertEquals(0, $telemetry['misses']);
+        $this->assertEquals(0, $telemetry['errors']);
+    }
+
+    public function testCacheDriverConfiguration(): void
+    {
+        // Test with array driver
+        $arrayValidator = new CachedDnsValidator([], null, null, 3600, 'array');
+        $this->assertInstanceOf(CachedDnsValidator::class, $arrayValidator);
+
+        // Test with file driver
+        $fileValidator = new CachedDnsValidator([], null, null, 3600, 'file');
+        $this->assertInstanceOf(CachedDnsValidator::class, $fileValidator);
+
+        // Test with null driver
+        $nullValidator = new CachedDnsValidator([], null, null, 3600, 'null');
+        $this->assertInstanceOf(CachedDnsValidator::class, $nullValidator);
+    }
+
+    public function testCustomTTLConfiguration(): void
+    {
+        $customTtl = 7200; // 2 hours
+        
+        $validator = new CachedDnsValidator([], null, null, $customTtl, 'array');
+        
+        $stats = $validator->getCacheStats();
+        $this->assertEquals($customTtl, $stats['cache_ttl']);
+    }
+
+    public function testInvalidDriverFallback(): void
+    {
+        // Test with invalid driver - should fallback to array
+        $validator = new CachedDnsValidator([], null, null, 3600, 'invalid_driver');
+        
+        $this->assertInstanceOf(CachedDnsValidator::class, $validator);
+        
+        // Should work normally despite invalid driver
+        $result = $validator->validateDomain('example.com');
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('domain', $result);
+    }
+
+    public function testDriverFallbackOnException(): void
+    {
+        // Test that if Redis fails, it falls back to ArrayAdapter
+        // This is hard to test directly, but we can test the constructor works
+        $validator = new CachedDnsValidator([], null, null, 3600, 'redis');
+        
+        $this->assertInstanceOf(CachedDnsValidator::class, $validator);
+        
+        // Even if Redis is not available, it should fallback gracefully
+        $stats = $validator->getCacheStats();
+        $this->assertArrayHasKey('cache_driver', $stats);
     }
 }

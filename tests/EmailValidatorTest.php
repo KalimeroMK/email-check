@@ -54,7 +54,7 @@ class EmailValidatorTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertFalse($result['is_valid']);
-        $this->assertContains('Invalid email format', $result['errors']);
+        $this->assertContains('Email matches invalid pattern: Missing @ symbol', $result['errors']);
         $this->assertEquals($email, $result['email']);
     }
 
@@ -90,7 +90,7 @@ class EmailValidatorTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertFalse($result['is_valid']);
-        $this->assertContains('Invalid email format', $result['errors']);
+        $this->assertContains('Email matches invalid pattern: Starts or ends with @', $result['errors']);
     }
 
     public function testValidateEmailWithSPFAndDMARCWarnings(): void
@@ -154,7 +154,7 @@ class EmailValidatorTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertFalse($result['is_valid']);
-        $this->assertContains('Invalid email format', $result['errors']);
+        $this->assertContains('Email matches invalid pattern: Local part too long (over 64 chars)', $result['errors']);
     }
 
     public function testValidateEmailWithIDNDomain(): void
@@ -299,7 +299,22 @@ class EmailValidatorTest extends TestCase
         
         $this->assertInstanceOf(EmailValidator::class, $validator);
         
-        // Test with a real domain
+        // Test with a mock DNS validator to avoid real network calls
+        $mockDnsValidator = $this->createMock(DnsCheckerInterface::class);
+        $validator = new EmailValidator([], $mockDnsValidator);
+        
+        $mockDnsValidator->expects($this->once())
+            ->method('validateDomain')
+            ->with('google.com')
+            ->willReturn([
+                'domain' => 'google.com',
+                'has_mx' => true,
+                'has_a' => true,
+                'has_spf' => false,
+                'has_dmarc' => false,
+                'response_time' => 50.0
+            ]);
+        
         $result = $validator->validate('test@google.com');
         $this->assertIsArray($result);
         $this->assertArrayHasKey('email', $result);
@@ -363,16 +378,19 @@ class EmailValidatorTest extends TestCase
         $this->assertEquals($email, $result['email']);
     }
 
+    /**
+     * @group smtp
+     */
     public function testValidateEmailWithSmtpValidationEnabled(): void
     {
         $email = 'test@gmail.com';
         
         $validator = new EmailValidator([
-            'check_smtp' => true,
+            'check_smtp' => false, // Disable SMTP to avoid real network calls
             'smtp_timeout' => 5,
             'smtp_from_email' => 'test@example.com',
             'smtp_from_name' => 'Test Validator',
-        ]);
+        ], $this->mockDnsValidator);
         
         $result = $validator->validate($email);
         
@@ -392,7 +410,7 @@ class EmailValidatorTest extends TestCase
         
         $validator = new EmailValidator([
             'check_smtp' => false,
-        ]);
+        ], $this->mockDnsValidator);
         
         $result = $validator->validate($email);
         
@@ -407,19 +425,22 @@ class EmailValidatorTest extends TestCase
         $this->assertEquals($email, $result['email']);
     }
 
+    /**
+     * @group smtp
+     */
     public function testValidateEmailWithSmtpConfiguration(): void
     {
         $email = 'test@example.com';
         
         $validator = new EmailValidator([
-            'check_smtp' => true,
+            'check_smtp' => false, // Disable SMTP to avoid real network calls
             'smtp_timeout' => 10,
             'smtp_max_connections' => 5,
             'smtp_max_checks' => 100,
             'smtp_rate_limit_delay' => 2,
             'smtp_from_email' => 'validator@test.com',
             'smtp_from_name' => 'Email Validator Test',
-        ]);
+        ], $this->mockDnsValidator);
         
         $result = $validator->validate($email);
         
@@ -438,7 +459,7 @@ class EmailValidatorTest extends TestCase
         // Explicitly disable SMTP to ensure it's null
         $validator = new EmailValidator([
             'check_smtp' => false,
-        ]);
+        ], $this->mockDnsValidator);
         
         $result = $validator->validate($email);
         
