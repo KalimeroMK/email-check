@@ -61,6 +61,9 @@ class PatternValidator
     /** @var array<string> */
     private readonly array $strictPatterns;
 
+    /** @var array<string> */
+    private readonly array $strictLocalPatterns;
+
     /** @var array<string, string> */
     private array $patternDescriptions = [];
 
@@ -93,6 +96,11 @@ class PatternValidator
             // Invalid TLD characters
             '/@.*\.[^a-zA-Z]+$/',
 
+        ];
+
+        // Applied to the local part only; the domain has its own rules and legitimately
+        // contains runs such as the "--" that every punycode label carries.
+        $this->strictLocalPatterns = [
             // Consecutive special characters
             '/[._+-]{2,}/',
 
@@ -142,6 +150,17 @@ class PatternValidator
         if ($this->strictMode) {
             foreach ($this->strictPatterns as $pattern) {
                 if (preg_match($pattern, $email)) {
+                    $result['pattern_status'] = 'warning';
+                    $result['matched_pattern'] = $pattern;
+                    $result['warnings'][] = 'Email matches strict pattern: ' . $this->getPatternDescription($pattern);
+                }
+            }
+
+            $atPos = strrpos($email, '@');
+            $localPart = $atPos === false ? $email : substr($email, 0, $atPos);
+
+            foreach ($this->strictLocalPatterns as $pattern) {
+                if (preg_match($pattern, $localPart)) {
                     $result['pattern_status'] = 'warning';
                     $result['matched_pattern'] = $pattern;
                     $result['warnings'][] = 'Email matches strict pattern: ' . $this->getPatternDescription($pattern);
@@ -242,7 +261,7 @@ class PatternValidator
             'enable_pattern_filtering' => $this->enablePatternFiltering,
             'pattern_strict_mode' => $this->strictMode,
             'invalid_patterns_count' => count($this->invalidPatterns),
-            'strict_patterns_count' => count($this->strictPatterns),
+            'strict_patterns_count' => count($this->strictPatterns) + count($this->strictLocalPatterns),
         ];
     }
 

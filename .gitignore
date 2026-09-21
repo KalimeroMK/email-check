@@ -71,3 +71,6 @@ statistics*.json
 progress*.json
 server_*.json
 stats*.json
+/.php-cs-fixer.cache
+/.phpunit.result.cache
+/.phpunit.cache

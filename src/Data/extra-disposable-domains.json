@@ -1,0 +1,10 @@
+{
+    "metadata": {
+        "purpose": "Providers that are demonstrably disposable but absent from the upstream sources used by disposable-domains.json.",
+        "note": "Keep this list short and justify every entry; the upstream lists remain authoritative."
+    },
+    "domains": [
+        "tempmail.org",
+        "throwaway.email"
+    ]
+}

@@ -7,12 +7,80 @@ class DisposableEmailDetector
     /** @var array<string> */
     private array $disposableDomains = [];
 
+    /**
+     * The same domains keyed for O(1) lookup. The list holds ~72k entries, so a
+     * linear scan per address makes bulk validation unusable.
+     *
+     * @var array<string, true>
+     */
+    private array $domainIndex = [];
+
     private readonly string $dataFile;
 
-    public function __construct()
+    private readonly string $extraDataFile;
+
+    private readonly bool $matchSubdomains;
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    public function __construct(array $config = [])
     {
-        $this->dataFile = __DIR__ . '/../data/disposable-domains.json';
+        $this->matchSubdomains = (bool) ($config['disposable_match_subdomains'] ?? true);
+        $this->dataFile = __DIR__ . '/../Data/disposable-domains.json';
+        $this->extraDataFile = __DIR__ . '/../Data/extra-disposable-domains.json';
         $this->loadDisposableDomains();
+        $this->loadExtraDomains();
+    }
+
+    /**
+     * Replaces the domain set, keeping the list and the lookup index in step.
+     *
+     * @param array<string> $domains
+     */
+    private function setDomains(array $domains): void
+    {
+        $this->domainIndex = [];
+
+        foreach ($domains as $domain) {
+            $domain = strtolower(trim((string) $domain));
+
+            if ($domain !== '') {
+                $this->domainIndex[$domain] = true;
+            }
+        }
+
+        $this->disposableDomains = array_keys($this->domainIndex);
+    }
+
+    /**
+     * Merges a small curated list for providers the upstream sources miss.
+     */
+    private function loadExtraDomains(): void
+    {
+        if (!file_exists($this->extraDataFile)) {
+            return;
+        }
+
+        try {
+            $json = file_get_contents($this->extraDataFile);
+
+            if ($json === false) {
+                return;
+            }
+
+            $data = json_decode($json, true);
+
+            if (!is_array($data) || !isset($data['domains']) || !is_array($data['domains'])) {
+                return;
+            }
+
+            foreach ($data['domains'] as $domain) {
+                $this->addDisposableDomain((string) $domain);
+            }
+        } catch (\Throwable) {
+            // a malformed supplement must never break the main list
+        }
     }
 
     /**
@@ -30,7 +98,31 @@ class DisposableEmailDetector
     public function isDisposableDomain(string $domain): bool
     {
         $domain = strtolower(trim($domain));
-        return in_array($domain, $this->disposableDomains, true);
+
+        if ($domain === '') {
+            return false;
+        }
+
+        if (isset($this->domainIndex[$domain])) {
+            return true;
+        }
+
+        if (!$this->matchSubdomains) {
+            return false;
+        }
+
+        // Providers such as Mailinator hand out unlimited subdomains, so walk the
+        // labels upwards. Stop before a bare TLD so 'com' can never match.
+        $labels = explode('.', $domain);
+        $count = count($labels);
+
+        for ($i = 1; $i <= $count - 2; $i++) {
+            if (isset($this->domainIndex[implode('.', array_slice($labels, $i))])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -80,7 +172,8 @@ class DisposableEmailDetector
                 return false;
             }
 
-            $this->disposableDomains = $data['domains'];
+            $this->setDomains($data['domains']);
+
             return true;
 
         } catch (\Throwable) {
@@ -94,7 +187,7 @@ class DisposableEmailDetector
     private function loadBuiltInDomains(): void
     {
         // Basic list of common disposable email domains
-        $this->disposableDomains = [
+        $this->setDomains([
             '10minutemail.com',
             '10minutemail.co.uk',
             '10minutemail.de',
@@ -279,7 +372,7 @@ class DisposableEmailDetector
             'tempmailer.yt',
             'tempmailer.re',
             'tempmailer.mw',
-        ];
+        ]);
     }
 
     /**
@@ -296,9 +389,13 @@ class DisposableEmailDetector
     public function addDisposableDomain(string $domain): void
     {
         $domain = strtolower(trim($domain));
-        if (!in_array($domain, $this->disposableDomains, true)) {
-            $this->disposableDomains[] = $domain;
+
+        if ($domain === '' || isset($this->domainIndex[$domain])) {
+            return;
         }
+
+        $this->domainIndex[$domain] = true;
+        $this->disposableDomains[] = $domain;
     }
 
     /**
@@ -307,11 +404,13 @@ class DisposableEmailDetector
     public function removeDisposableDomain(string $domain): void
     {
         $domain = strtolower(trim($domain));
-        $key = array_search($domain, $this->disposableDomains, true);
-        if ($key !== false) {
-            unset($this->disposableDomains[$key]);
-            $this->disposableDomains = array_values($this->disposableDomains);
+
+        if (!isset($this->domainIndex[$domain])) {
+            return;
         }
+
+        unset($this->domainIndex[$domain]);
+        $this->disposableDomains = array_keys($this->domainIndex);
     }
 
     /**

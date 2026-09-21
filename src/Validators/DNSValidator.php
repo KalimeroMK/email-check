@@ -23,6 +23,7 @@ class DNSValidator implements DnsCheckerInterface
         $result = [
             'domain' => $domain,
             'has_mx' => false,
+            'has_null_mx' => false,
             'has_a' => false,
             'has_spf' => false,
             'has_dmarc' => false,
@@ -38,14 +39,19 @@ class DNSValidator implements DnsCheckerInterface
         try {
             // Check for MX records
             if ($this->config['check_mx']) {
-                $mxResult = $this->checkMXRecords($domain);
-                $result['has_mx'] = $mxResult;
-                $result['mx_records'] = [];
-                // For now no details for MX records
+                $result['has_null_mx'] = $this->hasNullMx($domain);
+
+                if ($result['has_null_mx']) {
+                    $result['errors'][] = 'Domain publishes a null MX and accepts no mail (RFC 7505)';
+                } else {
+                    $mxResult = $this->checkMXRecords($domain);
+                    $result['has_mx'] = $mxResult;
+                    $result['mx_records'] = [];
+                }
             }
 
-            // Check for A records (backup)
-            if ($this->config['check_a'] && !$result['has_mx']) {
+            // Check for A records (backup). RFC 7505 forbids this fallback for a null MX.
+            if ($this->config['check_a'] && !$result['has_mx'] && !$result['has_null_mx']) {
                 $aResult = $this->checkARecords($domain);
                 $result['has_a'] = $aResult;
                 $result['a_records'] = [];
@@ -80,6 +86,41 @@ class DNSValidator implements DnsCheckerInterface
     }
 
     /**
+     * A null MX (RFC 7505) is a single MX record with an empty host, which declares
+     * that the domain accepts no mail at all.
+     */
+    public function hasNullMx(string $domain): bool
+    {
+        $cacheKey = 'nullmx_' . $domain;
+
+        if (isset($this->cache[$cacheKey])) {
+            return $this->cache[$cacheKey];
+        }
+
+        $isNull = false;
+
+        try {
+            $mxRecords = [];
+            $mxWeight = [];
+
+            if (getmxrr($domain, $mxRecords, $mxWeight) && $mxRecords !== []) {
+                $hosts = array_filter(
+                    $mxRecords,
+                    static fn ($host): bool => trim((string) $host, " \t.") !== '',
+                );
+
+                $isNull = $hosts === [];
+            }
+        } catch (\Exception) {
+            // treat a lookup failure as "not a null MX" and let the normal checks decide
+        }
+
+        $this->cache[$cacheKey] = $isNull;
+
+        return $isNull;
+    }
+
+    /**
      * Checks MX records for domain
      */
     public function checkMXRecords(string $domain): bool
@@ -97,7 +138,12 @@ class DNSValidator implements DnsCheckerInterface
             $mxWeight = [];
 
             if (getmxrr($domain, $mxRecords, $mxWeight)) {
-                $hasMx = true;
+                $hosts = array_filter(
+                    $mxRecords,
+                    static fn ($host): bool => trim((string) $host, " \t.") !== '',
+                );
+
+                $hasMx = $hosts !== [];
             }
         } catch (\Exception) {
             // Ignore errors for now
