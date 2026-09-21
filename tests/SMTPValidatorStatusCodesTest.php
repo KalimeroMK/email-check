@@ -3,11 +3,10 @@
 namespace KalimeroMK\EmailCheck\Tests;
 
 use KalimeroMK\EmailCheck\Validators\SMTPValidator;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @group smtp
- */
+#[Group('smtp')]
 class SMTPValidatorStatusCodesTest extends TestCase
 {
     private SMTPValidator $validator;
@@ -68,7 +67,6 @@ class SMTPValidatorStatusCodesTest extends TestCase
     {
         $reflection = new \ReflectionClass($this->validator);
         $method = $reflection->getMethod('analyzeSmtpResponse');
-        $method->setAccessible(true);
 
         // Test success response
         $this->assertEquals('success', $method->invoke($this->validator, '250 OK'));

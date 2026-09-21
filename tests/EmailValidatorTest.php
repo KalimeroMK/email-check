@@ -7,6 +7,7 @@ use KalimeroMK\EmailCheck\Interfaces\DnsCheckerInterface;
 use KalimeroMK\EmailCheck\Validators\DNSValidator;
 use KalimeroMK\EmailCheck\Detectors\DisposableEmailDetector;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 class EmailValidatorTest extends TestCase
@@ -378,9 +379,7 @@ class EmailValidatorTest extends TestCase
         $this->assertEquals($email, $result['email']);
     }
 
-    /**
-     * @group smtp
-     */
+    #[Group('smtp')]
     public function testValidateEmailWithSmtpValidationEnabled(): void
     {
         $email = 'test@gmail.com';
@@ -425,9 +424,7 @@ class EmailValidatorTest extends TestCase
         $this->assertEquals($email, $result['email']);
     }
 
-    /**
-     * @group smtp
-     */
+    #[Group('smtp')]
     public function testValidateEmailWithSmtpConfiguration(): void
     {
         $email = 'test@example.com';

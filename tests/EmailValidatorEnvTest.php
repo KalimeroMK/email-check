@@ -3,6 +3,7 @@
 namespace KalimeroMK\EmailCheck\Tests;
 
 use KalimeroMK\EmailCheck\EmailValidator;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 class EmailValidatorEnvTest extends TestCase
@@ -34,9 +35,7 @@ class EmailValidatorEnvTest extends TestCase
         }
     }
 
-    /**
-     * @group smtp
-     */
+    #[Group('smtp')]
     public function testEmailValidatorReadsSmtpFromEnvFile(): void
     {
         // Create test .env file with SMTP enabled
@@ -52,7 +51,6 @@ class EmailValidatorEnvTest extends TestCase
         // Use reflection to access private config
         $reflection = new \ReflectionClass($validator);
         $configProperty = $reflection->getProperty('config');
-        $configProperty->setAccessible(true);
         $config = $configProperty->getValue($validator);
 
         $this->assertTrue($config['check_smtp'], 'SMTP should be enabled from .env file');
@@ -76,7 +74,6 @@ class EmailValidatorEnvTest extends TestCase
         // Use reflection to access private config
         $reflection = new \ReflectionClass($validator);
         $configProperty = $reflection->getProperty('config');
-        $configProperty->setAccessible(true);
         $config = $configProperty->getValue($validator);
 
         $this->assertFalse($config['check_smtp'], 'SMTP should be disabled from .env file');
@@ -97,7 +94,6 @@ class EmailValidatorEnvTest extends TestCase
         // Use reflection to access private config
         $reflection = new \ReflectionClass($validator);
         $configProperty = $reflection->getProperty('config');
-        $configProperty->setAccessible(true);
         $config = $configProperty->getValue($validator);
 
         $this->assertFalse($config['check_smtp'], 'SMTP should be disabled by default when no .env file');
@@ -105,9 +101,7 @@ class EmailValidatorEnvTest extends TestCase
         $this->assertEquals('test@example.com', $config['smtp_from_email'], 'SMTP from email should use default value');
     }
 
-    /**
-     * @group smtp
-     */
+    #[Group('smtp')]
     public function testEmailValidatorUserConfigOverridesEnvFile(): void
     {
         // Create test .env file with SMTP enabled
@@ -127,7 +121,6 @@ class EmailValidatorEnvTest extends TestCase
         // Use reflection to access private config
         $reflection = new \ReflectionClass($validator);
         $configProperty = $reflection->getProperty('config');
-        $configProperty->setAccessible(true);
         $config = $configProperty->getValue($validator);
 
         // User config should override .env config
@@ -136,9 +129,7 @@ class EmailValidatorEnvTest extends TestCase
         $this->assertEquals('user@override.com', $config['smtp_from_email'], 'User config should override .env email');
     }
 
-    /**
-     * @group smtp
-     */
+    #[Group('smtp')]
     public function testEmailValidatorValidatesWithEnvSmtpSettings(): void
     {
         // Create test .env file with SMTP enabled

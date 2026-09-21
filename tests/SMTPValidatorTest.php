@@ -3,12 +3,11 @@
 namespace KalimeroMK\EmailCheck\Tests;
 
 use KalimeroMK\EmailCheck\Validators\SMTPValidator;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
 
-/**
- * @group smtp
- */
+#[Group('smtp')]
 class SMTPValidatorTest extends TestCase
 {
     private SMTPValidator $validator;
