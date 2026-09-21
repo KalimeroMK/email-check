@@ -1,52 +1,52 @@
 {
-  "name": "kalimeromk/email-check",
-  "description": "An advanced PHP library for email validation with DNS checks and typo suggestions.",
-  "type": "library",
-  "keywords": [
-    "email",
-    "validation",
-    "validator",
-    "check",
-    "dns",
-    "disposable"
-  ],
-  "license": "MIT",
-  "authors": [
-    {
-      "name": "Zoran Shefot Bogoevski",
-      "email": "zbogoevski@gmail.com"
-    }
-  ],
-  "require": {
-    "php": ">=8.1",
-    "psr/simple-cache": "^3.0",
-    "symfony/cache": "^6.0|^7.0"
-  },
-  "autoload": {
-    "psr-4": {
-      "KalimeroMK\\EmailCheck\\": "src/"
+    "name": "kalimeromk/email-check",
+    "description": "An advanced PHP library for email validation with DNS checks and typo suggestions.",
+    "type": "library",
+    "keywords": [
+        "email",
+        "validation",
+        "validator",
+        "check",
+        "dns",
+        "disposable"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Zoran Shefot Bogoevski",
+            "email": "zbogoevski@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "psr/simple-cache": "^3.0",
+        "symfony/cache": "^6.0|^7.0"
     },
-    "files": [
-      "src/helpers.php"
-    ]
-  },
-  "scripts": {
-    "validate": "php scripts/simple_extract.php",
-    "test": "php scripts/quick_validate.php",
-    "json": "php scripts/validate_json_file.php",
-    "analyze": "php scripts/analyze_server.php",
-    "phpstan": "./vendor/bin/phpstan analyse",
-    "test-phpunit": "./vendor/bin/phpunit"
-  },
-  "require-dev": {
-    "rector/rector": "^1.2",
-    "phpstan/phpstan": "^1.12",
-    "phpunit/phpunit": "^11.0",
-    "friendsofphp/php-cs-fixer": "^3.88"
-  },
-  "autoload-dev": {
-    "psr-4": {
-      "KalimeroMK\\EmailCheck\\Tests\\": "tests/"
+    "autoload": {
+        "psr-4": {
+            "KalimeroMK\\EmailCheck\\": "src/"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
+    },
+    "scripts": {
+        "validate": "php scripts/simple_extract.php",
+        "test": "php scripts/quick_validate.php",
+        "json": "php scripts/validate_json_file.php",
+        "analyze": "php scripts/analyze_server.php",
+        "phpstan": "phpstan analyse --memory-limit=1G",
+        "test-phpunit": "./vendor/bin/phpunit"
+    },
+    "require-dev": {
+        "rector/rector": "^1.2",
+        "phpstan/phpstan": "^1.12",
+        "phpunit/phpunit": "^11.0",
+        "friendsofphp/php-cs-fixer": "^3.88"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "KalimeroMK\\EmailCheck\\Tests\\": "tests/"
+        }
     }
-  }
 }

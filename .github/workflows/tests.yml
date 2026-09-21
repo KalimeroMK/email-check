@@ -1,0 +1,66 @@
+name: tests
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.2', '8.3', '8.4']
+
+    name: PHP ${{ matrix.php }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: json, mbstring, intl
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      # The curated domain list lives in src/Data. A lowercase path resolves on
+      # macOS but not here, which silently dropped the list down to the built-in
+      # fallback, so assert the real thing loaded.
+      - name: Assert the disposable list actually loads
+        run: |
+          php -r '
+            require "vendor/autoload.php";
+            $d = new KalimeroMK\EmailCheck\Detectors\DisposableEmailDetector();
+            if (!$d->hasExternalData() || $d->getDisposableDomainCount() < 10000) {
+              fwrite(STDERR, "disposable list did not load: " . $d->getDisposableDomainCount() . " domains\n");
+              exit(1);
+            }
+            echo "disposable list loaded: " . $d->getDisposableDomainCount() . " domains\n";
+          '
+
+      - name: Run tests
+        run: vendor/bin/phpunit
+
+  static:
+    runs-on: ubuntu-latest
+    name: static analysis
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: json, mbstring, intl
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G

@@ -6,6 +6,8 @@ parameters:
         - vendor/
         - tests/
         - src/Data/ExistingDatabaseManager.php
+        # Standalone operational CLI scripts, not part of the library's API surface
+        - src/Scripts/
     ignoreErrors:
         # Ignore some common issues that might be false positives
         - '#Call to an undefined method#'
